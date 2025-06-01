@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Science Laboratory Inventory System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Login Modal (Full Screen Overlay) -->
+    <div class="modal active" id="loginScreen" style="display:flex;position:fixed;z-index:2000;left:0;top:0;width:100vw;height:100vh;background:rgba(44,62,80,0.25);align-items:center;justify-content:center;">
+        <div class="modal-content" style="min-width:340px;max-width:95vw;max-height:90vh;overflow-y:auto;position:relative;">
+            <div class="modal-header">
+                <h3>Login to Science Lab Inventory</h3>
+            </div>
+            <div class="modal-body">
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="loginEmail">Email:</label>
+                        <input type="email" id="loginEmail" required autocomplete="username">
+                    </div>
+                    <div class="form-group">
+                        <label for="loginPassword">Password:</label>
+                        <input type="password" id="loginPassword" required autocomplete="current-password">
+                    </div>
+                    <div class="form-group">
+                        <label for="loginRole">Role:</label>
+                        <select id="loginRole" required>
+                            <option value="student">Student</option>
+                            <option value="staff">Lab Staff</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="secretIdGroup" style="display:none;">
+                        <label for="secretId">Admin Verification ID:</label>
+                        <input type="password" id="secretId" autocomplete="off">
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Login</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="container" id="mainApp" style="display:none;">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo">
+                <i class="fas fa-flask"></i>
+                <span>SLIS</span>
+            </div>
+            <nav>
+                <ul class="nav-links">
+                    <!-- Student accessible sections -->
+                    <li data-section="requests">
+                        <i class="fas fa-clipboard-list"></i>
+                        <span>My Requests</span>
+                    </li>
+                    <li data-section="issues">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span>Report Issues</span>
+                    </li>
+                    
+                    <!-- Admin/Staff only sections -->
+                    <li data-section="dashboard" class="admin-only">
+                        <i class="fas fa-tachometer-alt"></i>
+                        <span>Dashboard</span>
+                    </li>
+                    <li data-section="inventory" class="admin-only">
+                        <i class="fas fa-boxes"></i>
+                        <span>Inventory</span>
+                    </li>
+                    <li data-section="checkinout" class="admin-only">
+                        <i class="fas fa-exchange-alt"></i>
+                        <span>Check In/Out</span>
+                    </li>
+                    <li data-section="reports" class="admin-only">
+                        <i class="fas fa-chart-bar"></i>
+                        <span>Reports</span>
+                    </li>
+                    <li data-section="users" class="admin-only">
+                        <i class="fas fa-users"></i>
+                        <span>User Management</span>
+                    </li>
+                </ul>
+            </nav>
+            <div class="user-profile">
+                <div class="user-info-container">
+                    <div class="avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="user-info">
+                        <span class="username">John Doe</span>
+                        <span class="role">Lab Staff</span>
+                    </div>
+                </div>
+                <button class="logout-btn" id="logoutBtn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="search-bar">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Search...">
+                </div>
+                <div class="notification-bell" id="notificationBell">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-count">3</span>
+                    <div class="notification-dropdown" id="notificationDropdown" style="display:none;">
+                        <div class="dropdown-header">Notifications</div>
+                        <ul class="dropdown-list" id="notificationList">
+                            <!-- Notifications will be populated by JS -->
+                        </ul>
+                        <div class="dropdown-footer"><button class="btn btn-outline" id="markAllReadBtn">Mark all as read</button></div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Dashboard Section -->
+            <section id="dashboard" class="content-section active">
+                <h1>Dashboard</h1>
+                <div class="stats-container">
+                    <div class="stat-card" id="stat-total-items" data-action="show-all-items" style="background-color: #4e73df; cursor:pointer;">
+                        <div class="stat-icon" style="background-color: #4e73df;">
+                            <i class="fas fa-box"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-title">Total Items</span>
+                            <span class="stat-value">248</span>
+                        </div>
+                    </div>
+                    <div class="stat-card" id="stat-available-items" data-action="show-available-items" style="background-color: #1cc88a; cursor:pointer;">
+                        <div class="stat-icon" style="background-color: #1cc88a;">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-title">Available</span>
+                            <span class="stat-value">187</span>
+                        </div>
+                    </div>
+                    <div class="stat-card" id="stat-pending-requests" data-action="show-pending-requests" style="background-color: #f6c23e; cursor:pointer;">
+                        <div class="stat-icon" style="background-color: #f6c23e;">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-title">Pending Requests</span>
+                            <span class="stat-value">24</span>
+                        </div>
+                    </div>
+                    <div class="stat-card" id="stat-issues-reported" data-action="show-issues" style="background-color: #e74a3b; cursor:pointer;">
+                        <div class="stat-icon" style="background-color: #e74a3b;">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="stat-info">
+                            <span class="stat-title">Issues Reported</span>
+                            <span class="stat-value">7</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="charts-container">
+                    <div class="chart-card">
+                        <h3>Equipment Usage</h3>
+                        <canvas id="usageChart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Request Status</h3>
+                        <canvas id="requestChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="recent-activity">
+                    <h3>Recent Activity</h3>
+                    <div class="activity-list">
+                        <div class="activity-item">
+                            <div class="activity-icon">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <div class="activity-details">
+                                <span class="activity-text">Request #245 approved for Microscope</span>
+                                <span class="activity-time">10 minutes ago</span>
+                            </div>
+                        </div>
+                        <div class="activity-item">
+                            <div class="activity-icon">
+                                <i class="fas fa-exchange-alt"></i>
+                            </div>
+                            <div class="activity-details">
+                                <span class="activity-text">Bunsen burner checked out by Dr. Smith</span>
+                                <span class="activity-time">25 minutes ago</span>
+                            </div>
+                        </div>
+                        <div class="activity-item">
+                            <div class="activity-icon">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <div class="activity-details">
+                                <span class="activity-text">Issue reported for Centrifuge #3</span>
+                                <span class="activity-time">1 hour ago</span>
+                            </div>
+                        </div>
+                        <div class="activity-item">
+                            <div class="activity-icon">
+                                <i class="fas fa-user-plus"></i>
+                            </div>
+                            <div class="activity-details">
+                                <span class="activity-text">New user registered: Jane Cooper</span>
+                                <span class="activity-time">2 hours ago</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Inventory Section -->
+            <section id="inventory" class="content-section">
+                <div class="section-header">
+                    <h1>Inventory Management</h1>
+                    <button class="btn btn-primary" id="addItemBtn">
+                        <i class="fas fa-plus"></i> Add Item
+                    </button>
+                </div>
+                
+                <div class="filters">
+                    <div class="filter-group">
+                        <label for="categoryFilter">Category:</label>
+                        <select id="categoryFilter">
+                            <option value="all">All Categories</option>
+                            <option value="glassware">Glassware</option>
+                            <option value="equipment">Equipment</option>
+                            <option value="chemicals">Chemicals</option>
+                            <option value="tools">Tools</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="statusFilter">Status:</label>
+                        <select id="statusFilter">
+                            <option value="all">All Status</option>
+                            <option value="available">Available</option>
+                            <option value="checked-out">Checked Out</option>
+                            <option value="maintenance">Maintenance</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="searchInventory">Search:</label>
+                        <input type="text" id="searchInventory" placeholder="Search inventory...">
+                    </div>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="inventory-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Item Name</th>
+                                <th>Category</th>
+                                <th>Quantity</th>
+                                <th>Status</th>
+                                <th>Location</th>
+                                <th>Last Checked</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Inventory items will be populated here by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="pagination">
+                    <button class="btn btn-outline" id="prevPage">
+                        <i class="fas fa-chevron-left"></i> Previous
+                    </button>
+                    <span class="page-info">Page 1 of 5</span>
+                    <button class="btn btn-outline" id="nextPage">
+                        Next <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Requests Section -->
+            <section id="requests" class="content-section">
+                <div class="section-header">
+                    <h1>My Requests</h1>
+                    <button class="btn btn-primary" id="newRequestBtn">
+                        <i class="fas fa-plus"></i> New Request
+                    </button>
+                </div>
+                
+                <!-- Add reservation form for students -->
+                <div class="student-request-form" style="margin-bottom: 20px; display: none;">
+                    <h3>New Equipment Request</h3>
+                    <form id="studentRequestForm">
+                        <div class="form-group">
+                            <label for="requestItem">Select Equipment:</label>
+                            <select id="requestItem" required>
+                                <option value="">Choose equipment...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="requestDate">Needed By:</label>
+                            <input type="date" id="requestDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="requestPurpose">Purpose:</label>
+                            <textarea id="requestPurpose" required rows="3"></textarea>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Submit Request</button>
+                            <button type="button" class="btn btn-outline" id="cancelRequestBtn">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Student's request history -->
+                <div class="table-responsive">
+                    <table class="requests-table">
+                        <thead>
+                            <tr>
+                                <th>Request ID</th>
+                                <th>Item</th>
+                                <th>Requested By</th>
+                                <th>Date Requested</th>
+                                <th>Needed By</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Requests will be populated here by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Check In/Out Section -->
+            <section id="checkinout" class="content-section">
+                <div class="section-header">
+                    <h1>Check In/Out Equipment</h1>
+                </div>
+                
+                <div class="checkinout-container">
+                    <div class="checkinout-form">
+                        <h3>Check Out Equipment</h3>
+                        <div class="form-group">
+                            <label for="checkoutItem">Select Item:</label>
+                            <select id="checkoutItem">
+                                <option value="">Select an item</option>
+                                <!-- Items will be populated by JavaScript -->
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="checkoutUser">User:</label>
+                            <select id="checkoutUser">
+                                <option value="">Select a user</option>
+                                <!-- Users will be populated by JavaScript -->
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="checkoutDate">Expected Return Date:</label>
+                            <input type="date" id="checkoutDate">
+                        </div>
+                        <div class="form-group">
+                            <label for="checkoutNotes">Notes:</label>
+                            <textarea id="checkoutNotes" rows="3"></textarea>
+                        </div>
+                        <button class="btn btn-primary" id="checkoutBtn">Check Out</button>
+                    </div>
+                    
+                    <div class="checkinout-form">
+                        <h3>Check In Equipment</h3>
+                        <div class="form-group">
+                            <label for="checkinItem">Select Item to Check In:</label>
+                            <select id="checkinItem">
+                                <option value="">Select an item</option>
+                                <!-- Checked out items will be populated by JavaScript -->
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="checkinCondition">Condition:</label>
+                            <select id="checkinCondition">
+                                <option value="excellent">Excellent</option>
+                                <option value="good">Good</option>
+                                <option value="fair">Fair</option>
+                                <option value="poor">Poor</option>
+                                <option value="damaged">Damaged</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="checkinNotes">Notes:</label>
+                            <textarea id="checkinNotes" rows="3"></textarea>
+                        </div>
+                        <button class="btn btn-primary" id="checkinBtn">Check In</button>
+                    </div>
+                </div>
+                
+                <div class="currently-checked-out">
+                    <h3>Currently Checked Out Items</h3>
+                    <div class="table-responsive">
+                        <table class="checkedout-table">
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Checked Out By</th>
+                                    <th>Date Out</th>
+                                    <th>Due Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Checked out items will be populated here by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Reports Section -->
+            <section id="reports" class="content-section">
+                <div class="section-header">
+                    <h1>Reports</h1>
+                </div>
+                
+                <div class="report-filters">
+                    <div class="filter-group">
+                        <label for="reportType">Report Type:</label>
+                        <select id="reportType">
+                            <option value="usage">Equipment Usage</option>
+                            <option value="status">Inventory Status</option>
+                            <option value="requests">Request History</option>
+                            <option value="issues">Reported Issues</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="reportPeriod">Time Period:</label>
+                        <select id="reportPeriod">
+                            <option value="week">Last 7 Days</option>
+                            <option value="month">Last 30 Days</option>
+                            <option value="quarter">Last 90 Days</option>
+                            <option value="year">Last 12 Months</option>
+                            <option value="custom">Custom Range</option>
+                        </select>
+                    </div>
+                    <div class="filter-group custom-range" style="display: none;">
+                        <label for="startDate">From:</label>
+                        <input type="date" id="startDate">
+                        <label for="endDate">To:</label>
+                        <input type="date" id="endDate">
+                    </div>
+                    <button class="btn btn-primary" id="generateReportBtn">
+                        <i class="fas fa-chart-bar"></i> Generate Report
+                    </button>
+                    <button class="btn btn-outline" id="exportReportBtn">
+                        <i class="fas fa-file-export"></i> Export
+                    </button>
+                </div>
+                
+                <div class="report-results">
+                    <div class="report-chart">
+                        <canvas id="reportChart"></canvas>
+                    </div>
+                    <div class="report-table">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Item</th>
+                                    <th>Category</th>
+                                    <th>Usage Count</th>
+                                    <th>Last Used</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Report data will be populated here by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- User Management Section -->
+            <section id="users" class="content-section">
+                <div class="section-header">
+                    <h1>User Management</h1>
+                    <button class="btn btn-primary" id="addUserBtn">
+                        <i class="fas fa-user-plus"></i> Add User
+                    </button>
+                </div>
+                
+                <div class="filters">
+                    <div class="filter-group">
+                        <label for="userRoleFilter">Role:</label>
+                        <select id="userRoleFilter">
+                            <option value="all">All Roles</option>
+                            <option value="student">Student</option>
+                            <option value="faculty">Faculty</option>
+                            <option value="staff">Lab Staff</option>
+                            <option value="admin">Administrator</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="searchUsers">Search:</label>
+                        <input type="text" id="searchUsers" placeholder="Search users...">
+                    </div>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="users-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Department</th>
+                                <th>Last Active</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Users will be populated here by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Report Issues Section -->
+            <section id="issues" class="content-section">
+                <div class="section-header">
+                    <h1>Report Equipment Issues</h1>
+                </div>
+                
+                <div class="issues-container">
+                    <!-- Form for reporting issues - visible to all -->
+                    <div class="issue-form">
+                        <h3>Report New Issue</h3>
+                        <div class="form-group">
+                            <label for="issueItem">Select Item:</label>
+                            <select id="issueItem">
+                                <option value="">Select an item</option>
+                                <!-- Items will be populated by JavaScript -->
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="issueType">Issue Type:</label>
+                            <select id="issueType">
+                                <option value="damage">Damage</option>
+                                <option value="malfunction">Malfunction</option>
+                                <option value="missing">Missing Parts</option>
+                                <option value="safety">Safety Concern</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="issueSeverity">Severity:</label>
+                            <select id="issueSeverity">
+                                <option value="low">Low</option>
+                                <option value="medium">Medium</option>
+                                <option value="high">High</option>
+                                <option value="critical">Critical</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="issueDescription">Description:</label>
+                            <textarea id="issueDescription" rows="5" placeholder="Please describe the issue in detail..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="issueImage">Upload Image (Optional):</label>
+                            <input type="file" id="issueImage" accept="image/*">
+                        </div>
+                        <button class="btn btn-primary" id="submitIssueBtn">Submit Report</button>
+                    </div>
+                    
+                    <!-- Recent issues list - only visible to staff/admin -->
+                    <div class="issue-list admin-only">
+                        <h3>Recent Issues</h3>
+                        <div class="table-responsive">
+                            <table class="issues-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Item</th>
+                                        <th>Type</th>
+                                        <th>Severity</th>
+                                        <th>Reported By</th>
+                                        <th>Date</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Issues will be populated here by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modal for Add Item -->
+    <div class="modal" id="addItemModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add New Inventory Item</h3>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="addItemForm">
+                    <div class="form-group">
+                        <label for="itemName">Item Name:</label>
+                        <input type="text" id="itemName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="itemCategory">Category:</label>
+                        <select id="itemCategory" required>
+                            <option value="">Select a category</option>
+                            <option value="glassware">Glassware</option>
+                            <option value="equipment">Equipment</option>
+                            <option value="chemicals">Chemicals</option>
+                            <option value="tools">Tools</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="itemQuantity">Quantity:</label>
+                        <input type="number" id="itemQuantity" min="1" value="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="itemLocation">Location:</label>
+                        <input type="text" id="itemLocation" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="itemDescription">Description:</label>
+                        <textarea id="itemDescription" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="itemImage">Upload Image (Optional):</label>
+                        <input type="file" id="itemImage" accept="image/*">
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-outline close-modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Item</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Add User -->
+    <div class="modal" id="addUserModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add New User</h3>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="addUserForm">
+                    <div class="form-group">
+                        <label for="userFirstName">First Name:</label>
+                        <input type="text" id="userFirstName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="userLastName">Last Name:</label>
+                        <input type="text" id="userLastName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="userEmail">Email:</label>
+                        <input type="email" id="userEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="userRole">Role:</label>
+                        <select id="userRole" required>
+                            <option value="">Select a role</option>
+                            <option value="student">Student</option>
+                            <option value="faculty">Faculty</option>
+                            <option value="staff">Lab Staff</option>
+                            <option value="admin">Administrator</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="userDepartment">Department:</label>
+                        <input type="text" id="userDepartment">
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-outline close-modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save User</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Request Details -->
+    <div class="modal" id="requestDetailsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Request Details</h3>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="request-details">
+                    <div class="detail-row">
+                        <span class="detail-label">Request ID:</span>
+                        <span class="detail-value" id="detailRequestId">REQ-00123</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Item:</span>
+                        <span class="detail-value" id="detailItem">Microscope (Model X200)</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Requested By:</span>
+                        <span class="detail-value" id="detailRequester">Dr. Jane Smith (Chemistry Dept.)</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Date Requested:</span>
+                        <span class="detail-value" id="detailRequestDate">May 15, 2023</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Needed By:</span>
+                        <span class="detail-value" id="detailNeededBy">May 18, 2023</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Purpose:</span>
+                        <span class="detail-value" id="detailPurpose">Organic Chemistry Lab - Student Experiment</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Status:</span>
+                        <span class="detail-value status-pending" id="detailStatus">Pending</span>
+                    </div>
+                </div>
+                <div class="request-actions">
+                    <button class="btn btn-success" id="approveRequestBtn">Approve</button>
+                    <button class="btn btn-danger" id="rejectRequestBtn">Reject</button>
+                    <button class="btn btn-outline" id="contactRequesterBtn">
+                        <i class="fas fa-envelope"></i> Contact Requester
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Issue Details -->
+    <div class="modal" id="issueDetailsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Issue Details</h3>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="issue-details">
+                    <div class="detail-row">
+                        <span class="detail-label">Issue ID:</span>
+                        <span class="detail-value" id="detailIssueId">ISS-00456</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Item:</span>
+                        <span class="detail-value" id="detailIssueItem">Centrifuge (Model C-2000)</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Reported By:</span>
+                        <span class="detail-value" id="detailReporter">John Doe (Lab Assistant)</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Date Reported:</span>
+                        <span class="detail-value" id="detailReportDate">May 14, 2023</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Issue Type:</span>
+                        <span class="detail-value" id="detailIssueType">Malfunction</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Severity:</span>
+                        <span class="detail-value severity-high" id="detailSeverity">High</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Status:</span>
+                        <span class="detail-value status-open" id="detailIssueStatus">Open</span>
+                    </div>
+                    <div class="detail-row full-width">
+                        <span class="detail-label">Description:</span>
+                        <span class="detail-value" id="detailIssueDescription">
+                            The centrifuge makes unusual noise when spinning at speeds above 3000 RPM. 
+                            Vibration is noticeable and safety concerns have been raised by lab users.
+                        </span>
+                    </div>
+                    <div class="detail-row full-width">
+                        <span class="detail-label">Image:</span>
+                        <div class="issue-image-container">
+                            <img src="https://via.placeholder.com/400x300" alt="Issue Image" id="detailIssueImage">
+                        </div>
+                    </div>
+                </div>
+                <div class="issue-actions">
+                    <button class="btn btn-primary" id="resolveIssueBtn">Mark as Resolved</button>
+                    <button class="btn btn-outline" id="contactReporterBtn">
+                        <i class="fas fa-envelope"></i> Contact Reporter
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
