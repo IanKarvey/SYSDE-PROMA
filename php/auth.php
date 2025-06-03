@@ -88,4 +88,23 @@ if ($action === 'logout') {
     exit;
 }
 
+if ($action === 'check_session') {
+    if (isset($_SESSION['user_id'])) {
+        echo json_encode([
+            'success' => true,
+            'user' => [
+                'id' => $_SESSION['user_id'],
+                'first_name' => $_SESSION['first_name'],
+                'last_name' => $_SESSION['last_name'],
+                'email' => $_SESSION['email'],
+                'role' => $_SESSION['role'],
+                'department' => $_SESSION['department'] ?? ''
+            ]
+        ]);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'No active session.']);
+    }
+    exit;
+}
+
 echo json_encode(['success' => false, 'message' => 'Invalid action.']);

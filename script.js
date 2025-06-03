@@ -309,7 +309,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <td>${item.location}</td>
                 <td>${item.last_checked ? new Date(item.last_checked).toLocaleDateString() : 'Never'}</td>
                 <td>
-                    ${currentUser.role === 'admin' || currentUser.role === 'staff' ? `
+                    ${currentUser && (currentUser.role === 'admin' || currentUser.role === 'staff') ? `
                         <button class="btn btn-outline btn-sm edit-item" data-id="${item.id}" title="Edit Item">
                             <i class="fas fa-edit"></i>
                         </button>
@@ -345,7 +345,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     // Hide "New Request" button for admin/staff
     function updateRequestUI() {
-        if (currentUser.role === 'student') {
+        if (currentUser && currentUser.role === 'student') {
             $('#newRequestBtn').style.display = 'block';
         } else {
             $('#newRequestBtn').style.display = 'none';
@@ -362,10 +362,10 @@ document.addEventListener('DOMContentLoaded', function () {
             
             // Create action buttons based on user role and status
             let actionButtons = '';
-            if (currentUser.role === 'student') {
+            if (currentUser && currentUser.role === 'student') {
                 // Students can only see status
                 actionButtons = `<span class="status-${req.status.toLowerCase()}">${req.status}</span>`;
-            } else {
+            } else if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'staff')) {
                 // Admin/staff: show approve/reject buttons for pending requests
                 if (req.status === 'pending') {
                     actionButtons = `
@@ -375,6 +375,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 } else {
                     actionButtons = `<span class="status-${req.status.toLowerCase()}">${req.status}</span>`;
                 }
+            } else {
+                // No user logged in - show status only
+                actionButtons = `<span class="status-${req.status.toLowerCase()}">${req.status}</span>`;
             }
 
             tr.innerHTML = `
@@ -390,11 +393,11 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         // Add event listeners for approve/reject buttons
-        if (currentUser.role !== 'student') {
+        if (currentUser && currentUser.role !== 'student') {
             $all('.approve-request').forEach(btn => {
                 btn.onclick = () => updateRequestStatus(btn.dataset.id, 'approved');
             });
-            
+
             $all('.reject-request').forEach(btn => {
                 btn.onclick = () => updateRequestStatus(btn.dataset.id, 'rejected');
             });
@@ -540,7 +543,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 $('#issueDescription').value = '';
                 $('#issueImage').value = '';
                 // Refresh issues if admin/staff
-                if (currentUser.role === 'admin' || currentUser.role === 'staff') {
+                if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'staff')) {
                     fetchIssues();
                 }
             } else {
@@ -552,7 +555,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
     function renderIssuesTable(issues) {
-        if (currentUser.role === 'student') {
+        if (currentUser && currentUser.role === 'student') {
             // Hide issue list for students
             $('.issue-list').style.display = 'none';
             return;
@@ -581,10 +584,8 @@ document.addEventListener('DOMContentLoaded', function () {
         // Add event listeners for resolve here
     }
     // --- Initial Data Load ---
-    fetchInventory();
-    fetchRequests();
-    fetchCheckouts();
-    fetchIssues();
+    // Note: Data will be loaded after user authentication is established
+    // See login success handler and checkExistingSession function
     // --- Add more event listeners and AJAX for forms, modals, etc. as needed ---
     // --- Example: Add Item Modal, Approve/Reject Request, Check In/Out, etc. ---
     // --- Example: Chart.js integration for dashboard ---
@@ -764,9 +765,41 @@ document.addEventListener('DOMContentLoaded', function () {
             submitBtn.disabled = false;
         }
     });
-    // Hide main app until login
-    mainApp.style.display = 'none';
-    loginScreen.style.display = 'flex';
+    // Check for existing session on page load
+    async function checkExistingSession() {
+        try {
+            const res = await fetch('php/auth.php?action=check_session', {
+                credentials: 'include'
+            });
+            const data = await res.json();
+
+            if (data.success && data.user) {
+                // User is already logged in
+                updateUserUI(data.user);
+                loginScreen.style.display = 'none';
+                mainApp.style.display = '';
+
+                // Load all modules now that user is authenticated
+                fetchInventory();
+                fetchRequests();
+                fetchCheckouts();
+                fetchIssues();
+                showSection('#dashboard');
+            } else {
+                // No existing session, show login screen
+                mainApp.style.display = 'none';
+                loginScreen.style.display = 'flex';
+            }
+        } catch (error) {
+            console.error('Session check error:', error);
+            // On error, show login screen
+            mainApp.style.display = 'none';
+            loginScreen.style.display = 'flex';
+        }
+    }
+
+    // Check session on page load
+    checkExistingSession();
 
     // --- Inventory Management Event Handlers ---
     function populateEditForm(item) {
@@ -1203,7 +1236,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Add "View History" buttons to user management (for admin/staff)
     function addViewHistoryButtons() {
-        if (currentUser.role === 'admin' || currentUser.role === 'staff') {
+        if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'staff')) {
             $all('.users-table tbody tr').forEach(row => {
                 const userId = row.dataset.userId;
                 if (userId) {
