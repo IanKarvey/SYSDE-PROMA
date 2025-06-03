@@ -18,6 +18,20 @@ function require_staff_admin($user) {
 }
 
 if ($method === 'GET') {
+    // Check if requesting a specific item
+    if (isset($_GET['id'])) {
+        $id = intval($_GET['id']);
+        $stmt = $pdo->prepare('SELECT * FROM inventory WHERE id = ?');
+        $stmt->execute([$id]);
+        $item = $stmt->fetch();
+        if ($item) {
+            echo json_encode(['success' => true, 'item' => $item]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Item not found']);
+        }
+        exit;
+    }
+
     // List/search inventory
     $search = isset($_GET['search']) ? '%' . sanitize_string($_GET['search']) . '%' : '%';
     $category = $_GET['category'] ?? '';

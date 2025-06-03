@@ -1,10 +1,7 @@
 <?php
 // Utility functions
 
-function sanitize_email($email, $role = '') {
-    if ($role === 'admin') {
-        return trim($email); // For admin, just trim whitespace
-    }
+function sanitize_email($email) {
     return filter_var(trim($email), FILTER_SANITIZE_EMAIL);
 }
 

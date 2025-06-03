@@ -36,35 +36,43 @@ if ($action === 'register') {
 }
 
 if ($action === 'login') {
-    $role = sanitize_string($_POST['role'] ?? '');
-    $email = sanitize_email($_POST['email'] ?? '', $role);
+    $email = sanitize_email($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
-    
+
     if (!$email || !$password) {
         echo json_encode(['success' => false, 'message' => 'Email and password required.']);
         exit;
     }
-    
+
     try {
-        // Direct password comparison
-        $stmt = $pdo->prepare('SELECT * FROM users WHERE email = ? AND password = ? AND role = ?');
-        $stmt->execute([$email, $password, $role]);
+        // Authenticate user based on email and password only
+        // Role is automatically determined from database
+        $stmt = $pdo->prepare('SELECT * FROM users WHERE email = ? AND password = ? AND status = "active"');
+        $stmt->execute([$email, $password]);
         $user = $stmt->fetch();
-        
+
         if ($user) {
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['role'] = $user['role'];
             $_SESSION['first_name'] = $user['first_name'];
             $_SESSION['last_name'] = $user['last_name'];
             $_SESSION['email'] = $user['email'];
-            
+            $_SESSION['department'] = $user['department'];
+
             echo json_encode([
-                'success' => true, 
+                'success' => true,
                 'message' => 'Login successful',
-                'user' => $user
+                'user' => [
+                    'id' => $user['id'],
+                    'first_name' => $user['first_name'],
+                    'last_name' => $user['last_name'],
+                    'email' => $user['email'],
+                    'role' => $user['role'],
+                    'department' => $user['department']
+                ]
             ]);
         } else {
-            echo json_encode(['success' => false, 'message' => 'Invalid credentials']);
+            echo json_encode(['success' => false, 'message' => 'Invalid email or password']);
         }
     } catch (PDOException $e) {
         error_log("Database error: " . $e->getMessage());

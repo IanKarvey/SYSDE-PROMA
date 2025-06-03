@@ -100,6 +100,44 @@ INSERT INTO checkouts (item_id, user_id, date_out, due_date, date_in, condition_
 INSERT INTO issues (item_id, user_id, type, severity, description, image, date_reported, status) VALUES
 (1, 1, 'malfunction', 'high', 'Microscope focus knob is stuck.', NULL, '2024-06-01', 'open');
 
+-- Transaction Logs Table for comprehensive tracking
+CREATE TABLE transaction_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    transaction_id VARCHAR(50) UNIQUE NOT NULL,
+    user_id INT NOT NULL,
+    item_id INT NOT NULL,
+    action ENUM('request', 'checkout', 'checkin', 'approve', 'reject') NOT NULL,
+    details JSON,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (item_id) REFERENCES inventory(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+-- QR Codes Table for tracking generated codes
+CREATE TABLE qr_codes (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(100) UNIQUE NOT NULL,
+    type ENUM('request', 'checkout') NOT NULL,
+    reference_id INT NOT NULL,
+    data JSON,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP NULL
+) ENGINE=InnoDB;
+
+-- Student Activity Logs for comprehensive history
+CREATE TABLE activity_logs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    action VARCHAR(100) NOT NULL,
+    description TEXT,
+    item_id INT NULL,
+    reference_table VARCHAR(50) NULL,
+    reference_id INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (item_id) REFERENCES inventory(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
 -- Debug Queries
 -- To check users table structure:
 -- DESCRIBE users;

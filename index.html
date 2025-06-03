@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Science Laboratory Inventory System</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -13,31 +13,26 @@
     <div class="modal active" id="loginScreen" style="display:flex;position:fixed;z-index:2000;left:0;top:0;width:100vw;height:100vh;background:rgba(44,62,80,0.25);align-items:center;justify-content:center;">
         <div class="modal-content" style="min-width:340px;max-width:95vw;max-height:90vh;overflow-y:auto;position:relative;">
             <div class="modal-header">
-                <h3>Login to Science Lab Inventory</h3>
+                <h3>Science Laboratory Inventory System</h3>
+                <p style="text-align: center; color: var(--gray-600); font-size: 0.95rem; margin-top: 8px; font-weight: 400;">
+                    Sign in to access your laboratory resources
+                </p>
             </div>
             <div class="modal-body">
                 <form id="loginForm">
                     <div class="form-group">
-                        <label for="loginEmail">Email:</label>
-                        <input type="email" id="loginEmail" required autocomplete="username">
+                        <label for="loginEmail">Email Address:</label>
+                        <input type="email" id="loginEmail" required autocomplete="username" placeholder="Enter your email address">
                     </div>
                     <div class="form-group">
                         <label for="loginPassword">Password:</label>
-                        <input type="password" id="loginPassword" required autocomplete="current-password">
-                    </div>
-                    <div class="form-group">
-                        <label for="loginRole">Role:</label>
-                        <select id="loginRole" required>
-                            <option value="student">Student</option>
-                            <option value="staff">Lab Staff</option>
-                        </select>
-                    </div>
-                    <div class="form-group" id="secretIdGroup" style="display:none;">
-                        <label for="secretId">Admin Verification ID:</label>
-                        <input type="password" id="secretId" autocomplete="off">
+                        <input type="password" id="loginPassword" required autocomplete="current-password" placeholder="Enter your password">
                     </div>
                     <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">Login</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-sign-in-alt"></i>
+                            Sign In
+                        </button>
                     </div>
                 </form>
             </div>
@@ -653,6 +648,59 @@
         </div>
     </div>
 
+    <!-- Modal for Edit Item -->
+    <div class="modal" id="editItemModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Inventory Item</h3>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="editItemForm">
+                    <input type="hidden" id="editItemId">
+                    <div class="form-group">
+                        <label for="editItemName">Item Name:</label>
+                        <input type="text" id="editItemName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editItemCategory">Category:</label>
+                        <select id="editItemCategory" required>
+                            <option value="">Select a category</option>
+                            <option value="glassware">Glassware</option>
+                            <option value="equipment">Equipment</option>
+                            <option value="chemicals">Chemicals</option>
+                            <option value="tools">Tools</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editItemQuantity">Quantity:</label>
+                        <input type="number" id="editItemQuantity" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editItemStatus">Status:</label>
+                        <select id="editItemStatus" required>
+                            <option value="available">Available</option>
+                            <option value="checked-out">Checked Out</option>
+                            <option value="maintenance">Maintenance</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editItemLocation">Location:</label>
+                        <input type="text" id="editItemLocation" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editItemDescription">Description:</label>
+                        <textarea id="editItemDescription" rows="3"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-outline close-modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Update Item</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal for Add User -->
     <div class="modal" id="addUserModal">
         <div class="modal-content">
@@ -802,6 +850,78 @@
                     <button class="btn btn-outline" id="contactReporterBtn">
                         <i class="fas fa-envelope"></i> Contact Reporter
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Student History -->
+    <div class="modal" id="studentHistoryModal">
+        <div class="modal-content" style="max-width: 90vw; width: 1000px;">
+            <div class="modal-header">
+                <h3>Student Activity History</h3>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="student-info" id="studentInfo">
+                    <!-- Student information will be populated here -->
+                </div>
+
+                <div class="history-filters">
+                    <div class="filter-group">
+                        <label for="historyDateFrom">From Date:</label>
+                        <input type="date" id="historyDateFrom">
+                    </div>
+                    <div class="filter-group">
+                        <label for="historyDateTo">To Date:</label>
+                        <input type="date" id="historyDateTo">
+                    </div>
+                    <div class="filter-group">
+                        <label for="historyStatus">Status:</label>
+                        <select id="historyStatus">
+                            <option value="all">All Status</option>
+                            <option value="pending">Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="rejected">Rejected</option>
+                            <option value="checked-out">Checked Out</option>
+                            <option value="returned">Returned</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" id="filterHistoryBtn">Filter</button>
+                </div>
+
+                <div class="history-stats" id="historyStats">
+                    <!-- Statistics will be populated here -->
+                </div>
+
+                <div class="history-tabs">
+                    <button class="tab-btn active" data-tab="requests">Requests</button>
+                    <button class="tab-btn" data-tab="checkouts">Checkouts</button>
+                    <button class="tab-btn" data-tab="issues">Issues</button>
+                    <button class="tab-btn" data-tab="activities">Activities</button>
+                </div>
+
+                <div class="history-content" id="historyContent">
+                    <!-- History content will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for QR Code Display -->
+    <div class="modal" id="qrCodeModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>QR Code Generated</h3>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="qr-display" id="qrDisplay">
+                    <!-- QR code will be displayed here -->
+                </div>
+                <div class="qr-actions">
+                    <button class="btn btn-primary" id="printReceiptBtn">Print Receipt</button>
+                    <button class="btn btn-outline" id="downloadQRBtn">Download QR Code</button>
                 </div>
             </div>
         </div>
