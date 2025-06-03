@@ -23,4 +23,15 @@ function get_user() {
         'last_name' => $_SESSION['last_name'],
         'email' => $_SESSION['email'],
     ];
-} 
+}
+
+function require_staff_admin($user = null) {
+    if (!$user) {
+        $user = get_user();
+    }
+    if (!$user || ($user['role'] !== 'admin' && $user['role'] !== 'staff')) {
+        http_response_code(403);
+        echo json_encode(['success' => false, 'message' => 'Access denied. Admin or staff privileges required.']);
+        exit;
+    }
+}

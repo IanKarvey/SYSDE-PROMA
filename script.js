@@ -101,7 +101,11 @@ document.addEventListener('DOMContentLoaded', function () {
         showToast('Logged out', 'primary');
     }
     // --- Inventory ---
-    async function fetchInventory() {
+    let currentPage = 1;
+    let itemsPerPage = 10;
+
+    async function fetchInventory(page = 1) {
+        currentPage = page;
         const search = $('#searchInventory')?.value || '';
         const category = $('#categoryFilter')?.value || 'all';
         const status = $('#statusFilter')?.value || 'all';
@@ -110,10 +114,122 @@ document.addEventListener('DOMContentLoaded', function () {
         if (search) params.append('search', search);
         if (category !== 'all') params.append('category', category);
         if (status !== 'all') params.append('status', status);
+        params.append('page', page);
+        params.append('limit', itemsPerPage);
 
-        const res = await fetch(`php/inventory.php?${params.toString()}`, { credentials: 'include' });
-        const data = await res.json();
-        if (data.success) renderInventoryTable(data.data);
+        console.log('Fetching inventory with params:', params.toString());
+
+        try {
+            const res = await fetch(`php/inventory.php?${params.toString()}`, { credentials: 'include' });
+            console.log('Response status:', res.status, res.statusText);
+
+            if (!res.ok) {
+                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+            }
+
+            const data = await res.json();
+            console.log('Inventory data received:', data);
+
+            if (data.success) {
+                renderInventoryTable(data.data);
+                updatePaginationControls(data.pagination);
+            } else {
+                console.error('API returned error:', data.message);
+                showToast(data.message || 'Failed to fetch inventory', 'danger');
+            }
+        } catch (error) {
+            console.error('Error fetching inventory:', error);
+            showToast('Failed to fetch inventory: ' + error.message, 'danger');
+        }
+    }
+
+    function updatePaginationControls(pagination) {
+        const paginationDiv = $('.pagination');
+        const prevBtn = $('#prevPage');
+        const nextBtn = $('#nextPage');
+        const pageInfo = $('.page-info');
+
+        if (!paginationDiv || !prevBtn || !nextBtn || !pageInfo) return;
+
+        // Update page info
+        if (pagination.total_items === 0) {
+            pageInfo.textContent = 'No items found';
+        } else {
+            pageInfo.textContent = `Showing ${pagination.start_item}-${pagination.end_item} of ${pagination.total_items} items`;
+        }
+
+        // Show/hide pagination controls based on total pages
+        if (pagination.total_pages <= 1) {
+            paginationDiv.style.display = 'none';
+        } else {
+            paginationDiv.style.display = 'flex';
+
+            // Update Previous button
+            prevBtn.disabled = !pagination.has_previous;
+            prevBtn.style.opacity = pagination.has_previous ? '1' : '0.5';
+            prevBtn.style.cursor = pagination.has_previous ? 'pointer' : 'not-allowed';
+
+            // Update Next button
+            nextBtn.disabled = !pagination.has_next;
+            nextBtn.style.opacity = pagination.has_next ? '1' : '0.5';
+            nextBtn.style.cursor = pagination.has_next ? 'pointer' : 'not-allowed';
+        }
+    }
+
+    function showAddItemConfirmation(formData) {
+        // Extract form data for display
+        const name = formData.get('name');
+        const category = formData.get('category');
+        const quantity = formData.get('quantity');
+        const location = formData.get('location');
+        const description = formData.get('description');
+        const imageFile = formData.get('image');
+
+        const confirmationHTML = `
+            <div class="confirmation-details">
+                <h4>Confirm Add Item</h4>
+                <p>Are you sure you want to add this item to the inventory?</p>
+                <div class="item-details">
+                    <p><strong>Name:</strong> ${name}</p>
+                    <p><strong>Category:</strong> ${category}</p>
+                    <p><strong>Quantity:</strong> ${quantity}</p>
+                    <p><strong>Location:</strong> ${location}</p>
+                    <p><strong>Description:</strong> ${description || 'None'}</p>
+                    <p><strong>Image:</strong> ${imageFile && imageFile.name ? imageFile.name : 'None'}</p>
+                </div>
+            </div>
+        `;
+
+        // Create confirmation modal
+        const confirmModal = document.createElement('div');
+        confirmModal.className = 'modal active';
+        confirmModal.id = 'addItemConfirmModal';
+        confirmModal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Confirm Add Item</h3>
+                </div>
+                <div class="modal-body">
+                    ${confirmationHTML}
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-outline" id="cancelAddItem">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="confirmAddItem">Confirm Add</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(confirmModal);
+
+        // Add event listeners
+        $('#cancelAddItem').addEventListener('click', () => {
+            document.body.removeChild(confirmModal);
+        });
+
+        $('#confirmAddItem').addEventListener('click', async () => {
+            document.body.removeChild(confirmModal);
+            await addInventoryItem(formData);
+        });
     }
 
     async function addInventoryItem(formData) {
@@ -127,7 +243,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (data.success) {
                 showToast('Item added successfully', 'success');
                 closeModal('#addItemModal');
-                fetchInventory();
+                fetchInventory(currentPage); // Refresh current page
                 $('#addItemForm').reset();
             } else {
                 showToast(data.message || 'Failed to add item', 'danger');
@@ -668,6 +784,11 @@ document.addEventListener('DOMContentLoaded', function () {
         showModal('#addItemModal');
     });
 
+    // Professional close button handler
+    $('.close-modal-btn')?.addEventListener('click', () => {
+        closeModal('#addItemModal');
+    });
+
     $('#addItemForm')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const formData = new FormData();
@@ -682,7 +803,8 @@ document.addEventListener('DOMContentLoaded', function () {
             formData.append('image', imageFile);
         }
 
-        await addInventoryItem(formData);
+        // Show confirmation dialog instead of directly adding
+        showAddItemConfirmation(formData);
     });
 
     // Edit Item Form Handler
@@ -720,9 +842,20 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // Search and Filter Handlers
-    $('#searchInventory')?.addEventListener('input', debounce(fetchInventory, 300));
-    $('#categoryFilter')?.addEventListener('change', fetchInventory);
-    $('#statusFilter')?.addEventListener('change', fetchInventory);
+    $('#searchInventory')?.addEventListener('input', debounce(() => fetchInventory(1), 300));
+    $('#categoryFilter')?.addEventListener('change', () => fetchInventory(1));
+    $('#statusFilter')?.addEventListener('change', () => fetchInventory(1));
+
+    // Pagination Event Handlers
+    $('#prevPage')?.addEventListener('click', () => {
+        if (currentPage > 1) {
+            fetchInventory(currentPage - 1);
+        }
+    });
+
+    $('#nextPage')?.addEventListener('click', () => {
+        fetchInventory(currentPage + 1);
+    });
 
     // --- Issue Reporting Event Handlers ---
     $('#submitIssueBtn')?.addEventListener('click', submitIssueReport);
