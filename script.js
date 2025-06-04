@@ -53,21 +53,71 @@ document.addEventListener('DOMContentLoaded', function () {
             $('.role').textContent = user.role.charAt(0).toUpperCase() + user.role.slice(1);
             $('.user-profile').style.display = '';
 
-            // Hide/show sections based on role
+            // Enhanced role-based UI management
             if (user.role === 'student') {
+                // STUDENT ROLE CONFIGURATION
+
                 // Show only student-accessible sections
                 $all('.nav-links li').forEach(li => {
                     const section = li.getAttribute('data-section');
-                    if (!['requests', 'issues'].includes(section)) {
+                    if (['dashboard', 'requests', 'checkinout', 'issues'].includes(section)) {
+                        li.style.display = '';
+                    } else {
                         li.style.display = 'none';
                     }
                 });
+
+                // Hide "Add Item" button for students
+                const addItemBtn = $('#addItemBtn');
+                if (addItemBtn) addItemBtn.style.display = 'none';
+
+                // Show "New Request" button for students
+                const newRequestBtn = $('#newRequestBtn');
+                if (newRequestBtn) newRequestBtn.style.display = 'block';
+
+                // Keep "My Requests" header for students
+                const requestsHeader = $('#requests h1');
+                if (requestsHeader) requestsHeader.textContent = 'My Requests';
+
+                // Show check-in/out section for students (self-service)
+                const checkinoutNav = $('[data-section="checkinout"]');
+                if (checkinoutNav) checkinoutNav.style.display = '';
+
                 // Hide admin actions
                 $all('.admin-only').forEach(el => el.style.display = 'none');
-            } else {
-                // Show all sections for admin/staff
-                $all('.nav-links li').forEach(li => li.style.display = '');
+
+            } else if (user.role === 'admin' || user.role === 'staff') {
+                // ADMIN/STAFF ROLE CONFIGURATION
+
+                // Show all sections except check-in/out for admin/staff
+                $all('.nav-links li').forEach(li => {
+                    const section = li.getAttribute('data-section');
+                    if (section === 'checkinout') {
+                        li.style.display = 'none'; // Hide check-in/out from admin navigation
+                    } else {
+                        li.style.display = '';
+                    }
+                });
+
+                // Show "Add Item" button for admin/staff
+                const addItemBtn = $('#addItemBtn');
+                if (addItemBtn) addItemBtn.style.display = 'flex';
+
+                // Hide "New Request" button for admin/staff (they manage, not create)
+                const newRequestBtn = $('#newRequestBtn');
+                if (newRequestBtn) newRequestBtn.style.display = 'none';
+
+                // Change "My Requests" to "All Requests" for admin/staff
+                const requestsHeader = $('#requests h1');
+                if (requestsHeader) requestsHeader.textContent = 'All Requests';
+
+                // Show admin-specific features
                 $all('.admin-only').forEach(el => el.style.display = '');
+
+            } else {
+                // Default fallback for unknown roles
+                $all('.nav-links li').forEach(li => li.style.display = '');
+                $all('.admin-only').forEach(el => el.style.display = 'none');
             }
         } else {
             $('.username').textContent = '';
@@ -75,6 +125,49 @@ document.addEventListener('DOMContentLoaded', function () {
             $('.user-profile').style.display = 'none';
         }
     }
+
+    // --- Back Button Navigation ---
+    let navigationHistory = [];
+    let currentSection = '#dashboard';
+
+    function showSection(sectionId) {
+        // Add current section to history if different
+        if (currentSection !== sectionId) {
+            navigationHistory.push(currentSection);
+            currentSection = sectionId;
+        }
+
+        // Update UI
+        $all('.content-section').forEach(sec => sec.classList.remove('active'));
+        $(sectionId).classList.add('active');
+
+        // Show/hide back button
+        const backBtn = $('#backBtn');
+        if (backBtn) {
+            if (navigationHistory.length > 0 && sectionId !== '#dashboard') {
+                backBtn.style.display = 'flex';
+            } else {
+                backBtn.style.display = 'none';
+            }
+        }
+    }
+
+    // Back button functionality
+    $('#backBtn')?.addEventListener('click', () => {
+        if (navigationHistory.length > 0) {
+            const previousSection = navigationHistory.pop();
+            currentSection = previousSection;
+
+            $all('.content-section').forEach(sec => sec.classList.remove('active'));
+            $(previousSection).classList.add('active');
+
+            // Hide back button if we're back to dashboard or no more history
+            const backBtn = $('#backBtn');
+            if (backBtn && (navigationHistory.length === 0 || previousSection === '#dashboard')) {
+                backBtn.style.display = 'none';
+            }
+        }
+    });
     // --- Auth Modals ---
     // (You can add login/register modal triggers here)
     // Example: showModal('#loginModal');
@@ -233,6 +326,28 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function addInventoryItem(formData) {
+        // Enhanced add inventory with duplicate detection by name only
+        const name = formData.get('name');
+        const quantity = parseInt(formData.get('quantity'));
+
+        // Check for name-based duplicates before submission
+        const duplicates = await checkForDuplicateItem(name);
+
+        if (duplicates.length > 0) {
+            const userChoice = await showDuplicateConfirmation(duplicates, quantity);
+
+            if (userChoice === 'cancel') {
+                showToast('Operation cancelled', 'info');
+                return;
+            } else if (userChoice === 'add_to_existing') {
+                // User wants to add to existing item - let backend handle this
+                // The backend will detect exact match and update quantity
+            } else if (userChoice === 'create_separate') {
+                // User wants to create separate item - continue with normal creation
+                // No special handling needed, just proceed
+            }
+        }
+
         try {
             const res = await fetch('php/inventory.php', {
                 method: 'POST',
@@ -241,7 +356,11 @@ document.addEventListener('DOMContentLoaded', function () {
             });
             const data = await res.json();
             if (data.success) {
-                showToast('Item added successfully', 'success');
+                if (data.action === 'updated') {
+                    showToast(data.message, 'success');
+                } else {
+                    showToast('Item added successfully', 'success');
+                }
                 closeModal('#addItemModal');
                 fetchInventory(currentPage); // Refresh current page
                 $('#addItemForm').reset();
@@ -252,6 +371,107 @@ document.addEventListener('DOMContentLoaded', function () {
             console.error('Error adding item:', error);
             showToast('Failed to add item', 'danger');
         }
+    }
+
+    // Enhanced duplicate detection for inventory items - check by name only
+    async function checkForDuplicateItem(name) {
+        try {
+            const res = await fetch(`php/inventory.php?action=check_duplicate&name=${encodeURIComponent(name)}`, {
+                credentials: 'include'
+            });
+            const data = await res.json();
+            return data.success ? data.duplicates : [];
+        } catch (error) {
+            console.error('Error checking for duplicates:', error);
+            return [];
+        }
+    }
+
+    // Enhanced duplicate confirmation dialog with multiple options
+    function showDuplicateConfirmation(duplicates, newQuantity) {
+        return new Promise((resolve) => {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.style.display = 'flex';
+
+            // Create list of existing items
+            const duplicatesList = duplicates.map(dup =>
+                `<div class="duplicate-item">
+                    <strong>${dup.name}</strong> - ${dup.category} - ${dup.location} (${dup.quantity} units)
+                </div>`
+            ).join('');
+
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Duplicate Item Name Detected</h3>
+                        <button class="close-modal-btn" type="button">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="duplicate-info">
+                            <p><strong>Item with this name already exists:</strong></p>
+                            ${duplicatesList}
+                        </div>
+                        <div class="duplicate-question">
+                            <p>What would you like to do?</p>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-success add-to-existing" type="button">
+                            <i class="fas fa-plus"></i> Add to Existing Item
+                        </button>
+                        <button class="btn btn-primary create-separate" type="button">
+                            <i class="fas fa-copy"></i> Create as Separate Item
+                        </button>
+                        <button class="btn btn-outline cancel-action" type="button">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            // Handle events
+            const closeBtn = modal.querySelector('.close-modal-btn');
+            const addToExistingBtn = modal.querySelector('.add-to-existing');
+            const createSeparateBtn = modal.querySelector('.create-separate');
+            const cancelBtn = modal.querySelector('.cancel-action');
+
+            const cleanup = () => {
+                modal.remove();
+            };
+
+            closeBtn.onclick = () => {
+                cleanup();
+                resolve('cancel');
+            };
+
+            addToExistingBtn.onclick = () => {
+                cleanup();
+                resolve('add_to_existing');
+            };
+
+            createSeparateBtn.onclick = () => {
+                cleanup();
+                resolve('create_separate');
+            };
+
+            cancelBtn.onclick = () => {
+                cleanup();
+                resolve('cancel');
+            };
+
+            // Close on outside click
+            modal.onclick = (e) => {
+                if (e.target === modal) {
+                    cleanup();
+                    resolve('cancel');
+                }
+            };
+        });
     }
 
     async function editInventoryItem(itemId) {
@@ -380,9 +600,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 actionButtons = `<span class="status-${req.status.toLowerCase()}">${req.status}</span>`;
             }
 
+            // Add cancel button for students on their own pending requests
+            if (currentUser && currentUser.role === 'student' && req.status === 'pending' && req.user_id === currentUser.id) {
+                actionButtons = `<button class="btn btn-danger btn-sm cancel-request" data-id="${req.id}">Cancel</button>`;
+            }
+
             tr.innerHTML = `
                 <td>${req.id}</td>
                 <td>${req.item_name}</td>
+                <td>${req.quantity || 1}</td>
                 <td>${req.first_name ? req.first_name + ' ' + req.last_name : ''}</td>
                 <td>${req.date_requested}</td>
                 <td>${req.needed_by}</td>
@@ -402,6 +628,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 btn.onclick = () => updateRequestStatus(btn.dataset.id, 'rejected');
             });
         }
+
+        // Add event listeners for cancel buttons (students)
+        $all('.cancel-request').forEach(btn => {
+            btn.onclick = () => cancelRequest(btn.dataset.id);
+        });
     }
 
     function showRequestDetails(request) {
@@ -438,22 +669,101 @@ document.addEventListener('DOMContentLoaded', function () {
 
     async function updateRequestStatus(id, status) {
         if (!confirm(`Are you sure you want to ${status} this request?`)) return;
-        
+
         try {
+            console.log(`Updating request ${id} to status: ${status}`); // Debug log
+
             const res = await fetch('php/request.php', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: `id=${id}&status=${status}`,
                 credentials: 'include'
             });
+
+            console.log('Response status:', res.status); // Debug log
+
+            if (!res.ok) {
+                throw new Error(`HTTP error! status: ${res.status}`);
+            }
+
+            const data = await res.json();
+            console.log('Response data:', data); // Debug log
+
+            if (data.success) {
+                showToast(data.message || `Request ${status} successfully`, 'success');
+                fetchRequests();
+                closeModal('#requestDetailsModal');
+
+                // Refresh dashboard statistics
+                updateDashboardStats();
+            } else {
+                showToast(data.message || `Failed to ${status} request`, 'danger');
+            }
+        } catch (error) {
+            console.error('Error updating request status:', error);
+            showToast(`Failed to ${status} request: ${error.message}`, 'danger');
+        }
+    }
+
+    async function cancelRequest(id) {
+        if (!confirm('Are you sure you want to cancel this request?')) return;
+
+        try {
+            const res = await fetch('php/request.php', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `id=${id}&status=cancelled`,
+                credentials: 'include'
+            });
             const data = await res.json();
             if (data.success) {
-                showToast(`Request ${status} successfully`, 'success');
+                showToast('Request cancelled successfully', 'success');
                 fetchRequests();
+            } else {
+                showToast(data.message || 'Failed to cancel request', 'danger');
             }
         } catch (error) {
             console.error('Error:', error);
-            showToast(`Failed to ${status} request`, 'danger');
+            showToast('Failed to cancel request', 'danger');
+        }
+    }
+
+    // Contact User functionality
+    function showContactUserModal(userId, userName) {
+        $('#contactUserId').value = userId;
+        $('#contactUserName').value = userName;
+        $('#contactSubject').value = '';
+        $('#contactMessage').value = '';
+        showModal('#contactUserModal');
+    }
+
+    async function sendContactMessage() {
+        const userId = $('#contactUserId').value;
+        const subject = $('#contactSubject').value;
+        const message = $('#contactMessage').value;
+
+        if (!subject || !message.trim()) {
+            showToast('Please select a subject and enter a message', 'warning');
+            return;
+        }
+
+        try {
+            const res = await fetch('php/contact.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `user_id=${userId}&subject=${encodeURIComponent(subject)}&message=${encodeURIComponent(message)}`,
+                credentials: 'include'
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast('Message sent successfully', 'success');
+                closeModal('#contactUserModal');
+            } else {
+                showToast(data.message || 'Failed to send message', 'danger');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showToast('Failed to send message', 'danger');
         }
     }
     // --- Check In/Out ---
@@ -589,6 +899,115 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- Add more event listeners and AJAX for forms, modals, etc. as needed ---
     // --- Example: Add Item Modal, Approve/Reject Request, Check In/Out, etc. ---
     // --- Example: Chart.js integration for dashboard ---
+
+    // --- Real-Time Dashboard Statistics ---
+    async function updateDashboardStats() {
+        try {
+            // Show loading indicators
+            const statCards = $all('.stat-card .stat-number');
+            statCards.forEach(card => {
+                card.style.opacity = '0.5';
+                card.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            });
+
+            // Fetch real-time statistics
+            const [inventoryRes, requestsRes, issuesRes] = await Promise.all([
+                fetch('php/inventory.php?limit=1000', { credentials: 'include' }),
+                fetch('php/request.php', { credentials: 'include' }),
+                fetch('php/issue.php', { credentials: 'include' })
+            ]);
+
+            const [inventoryData, requestsData, issuesData] = await Promise.all([
+                inventoryRes.json(),
+                requestsRes.json(),
+                issuesRes.json()
+            ]);
+
+            // Calculate statistics
+            let totalItems = 0;
+            let availableItems = 0;
+            let pendingRequests = 0;
+            let issuesReported = 0;
+
+            // Inventory statistics
+            if (inventoryData.success) {
+                totalItems = inventoryData.data.length;
+                availableItems = inventoryData.data.filter(item =>
+                    item.status === 'available' && parseInt(item.quantity) > 0
+                ).length;
+            }
+
+            // Request statistics
+            if (requestsData.success) {
+                pendingRequests = requestsData.data.filter(request =>
+                    request.status === 'pending'
+                ).length;
+            }
+
+            // Issues statistics
+            if (issuesData.success) {
+                issuesReported = issuesData.data.length;
+            }
+
+            // Update dashboard with animation
+            updateStatCard('#stat-total-items', totalItems);
+            updateStatCard('#stat-available-items', availableItems);
+            updateStatCard('#stat-pending-requests', pendingRequests);
+            updateStatCard('#stat-issues-reported', issuesReported);
+
+        } catch (error) {
+            console.error('Error updating dashboard stats:', error);
+            // Reset loading indicators on error
+            const statCards = $all('.stat-card .stat-number');
+            statCards.forEach(card => {
+                card.style.opacity = '1';
+                card.innerHTML = '0';
+            });
+        }
+    }
+
+    function updateStatCard(selector, value) {
+        const card = $(selector + ' .stat-value');
+        if (card) {
+            // Animate the update
+            card.style.opacity = '0.5';
+            setTimeout(() => {
+                card.innerHTML = value;
+                card.style.opacity = '1';
+
+                // Add pulse animation for visual feedback
+                card.style.transform = 'scale(1.1)';
+                setTimeout(() => {
+                    card.style.transform = 'scale(1)';
+                }, 200);
+            }, 100);
+        }
+    }
+
+    // Auto-refresh dashboard every 30 seconds
+    let dashboardRefreshInterval;
+
+    function startDashboardAutoRefresh() {
+        // Clear existing interval
+        if (dashboardRefreshInterval) {
+            clearInterval(dashboardRefreshInterval);
+        }
+
+        // Update immediately
+        updateDashboardStats();
+
+        // Set up auto-refresh every 30 seconds
+        dashboardRefreshInterval = setInterval(() => {
+            updateDashboardStats();
+        }, 30000);
+    }
+
+    function stopDashboardAutoRefresh() {
+        if (dashboardRefreshInterval) {
+            clearInterval(dashboardRefreshInterval);
+            dashboardRefreshInterval = null;
+        }
+    }
 
     // --- Dashboard Stat Cards Clickable ---
     function showSection(sectionId) {
@@ -731,9 +1150,9 @@ document.addEventListener('DOMContentLoaded', function () {
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing In...';
         submitBtn.disabled = true;
 
-        // Send login AJAX
+        // Send login AJAX (using simplified auth for debugging)
         try {
-            const res = await fetch('php/auth.php', {
+            const res = await fetch('php/auth_simple.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: `action=login&email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`,
@@ -752,6 +1171,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 fetchRequests();
                 fetchCheckouts();
                 fetchIssues();
+
+                // Initialize reports dropdown for admin/staff
+                if (data.user.role === 'admin' || data.user.role === 'staff') {
+                    populateReportItemDropdown();
+                }
+
+                // Start dashboard auto-refresh
+                startDashboardAutoRefresh();
+
+                // Start announcements auto-refresh
+                startAnnouncementAutoRefresh();
+
                 showSection('#dashboard');
             } else {
                 showToast(data.message || 'Login failed', 'danger');
@@ -768,7 +1199,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Check for existing session on page load
     async function checkExistingSession() {
         try {
-            const res = await fetch('php/auth.php?action=check_session', {
+            const res = await fetch('php/auth_simple.php?action=check_session', {
                 credentials: 'include'
             });
             const data = await res.json();
@@ -784,6 +1215,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 fetchRequests();
                 fetchCheckouts();
                 fetchIssues();
+
+                // Initialize reports dropdown for admin/staff
+                if (data.user.role === 'admin' || data.user.role === 'staff') {
+                    populateReportItemDropdown();
+                }
+
+                // Start dashboard auto-refresh
+                startDashboardAutoRefresh();
+
+                // Start announcements auto-refresh
+                startAnnouncementAutoRefresh();
+
                 showSection('#dashboard');
             } else {
                 // No existing session, show login screen
@@ -800,6 +1243,503 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Check session on page load
     checkExistingSession();
+
+    // --- Global Search Functionality ---
+    let searchTimeout;
+    const globalSearchInput = $('#globalSearch');
+    const globalSearchResults = $('#globalSearchResults');
+
+    async function performGlobalSearch(query) {
+        if (!query.trim()) {
+            globalSearchResults.style.display = 'none';
+            return;
+        }
+
+        try {
+            // Search inventory
+            const inventoryRes = await fetch(`php/inventory.php?search=${encodeURIComponent(query)}&limit=5`, {
+                credentials: 'include'
+            });
+            const inventoryData = await inventoryRes.json();
+
+            // Search requests
+            const requestsRes = await fetch(`php/request.php?search=${encodeURIComponent(query)}&limit=5`, {
+                credentials: 'include'
+            });
+            const requestsData = await requestsRes.json();
+
+            // Search users (admin/staff only)
+            let usersData = { success: false, data: [] };
+            if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'staff')) {
+                const usersRes = await fetch(`php/users.php?search=${encodeURIComponent(query)}&limit=5`, {
+                    credentials: 'include'
+                });
+                usersData = await usersRes.json();
+            }
+
+            displaySearchResults(inventoryData.data || [], requestsData.data || [], usersData.data || []);
+
+        } catch (error) {
+            console.error('Search error:', error);
+        }
+    }
+
+    function displaySearchResults(inventory, requests, users) {
+        const inventoryResults = $('#inventoryResults .results-list');
+        const requestResults = $('#requestResults .results-list');
+        const userResults = $('#userResults .results-list');
+
+        // Clear previous results
+        inventoryResults.innerHTML = '';
+        requestResults.innerHTML = '';
+        userResults.innerHTML = '';
+
+        // Display inventory results
+        if (inventory.length > 0) {
+            inventory.forEach(item => {
+                const resultItem = document.createElement('div');
+                resultItem.className = 'result-item';
+                resultItem.innerHTML = `
+                    <div class="result-item-title">${item.name}</div>
+                    <div class="result-item-subtitle">${item.category} - ${item.location}</div>
+                `;
+                resultItem.onclick = () => {
+                    showSection('#inventory');
+                    globalSearchResults.style.display = 'none';
+                    globalSearchInput.value = '';
+                };
+                inventoryResults.appendChild(resultItem);
+            });
+        } else {
+            inventoryResults.innerHTML = '<div class="result-item">No inventory items found</div>';
+        }
+
+        // Display request results
+        if (requests.length > 0) {
+            requests.forEach(request => {
+                const resultItem = document.createElement('div');
+                resultItem.className = 'result-item';
+                resultItem.innerHTML = `
+                    <div class="result-item-title">Request #${request.id}</div>
+                    <div class="result-item-subtitle">${request.item_name} - ${request.status}</div>
+                `;
+                resultItem.onclick = () => {
+                    showSection('#requests');
+                    globalSearchResults.style.display = 'none';
+                    globalSearchInput.value = '';
+                };
+                requestResults.appendChild(resultItem);
+            });
+        } else {
+            requestResults.innerHTML = '<div class="result-item">No requests found</div>';
+        }
+
+        // Display user results (admin/staff only)
+        if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'staff')) {
+            if (users.length > 0) {
+                users.forEach(user => {
+                    const resultItem = document.createElement('div');
+                    resultItem.className = 'result-item';
+                    resultItem.innerHTML = `
+                        <div class="result-item-title">${user.first_name} ${user.last_name}</div>
+                        <div class="result-item-subtitle">${user.email} - ${user.role}</div>
+                    `;
+                    resultItem.onclick = () => {
+                        showSection('#users');
+                        globalSearchResults.style.display = 'none';
+                        globalSearchInput.value = '';
+                    };
+                    userResults.appendChild(resultItem);
+                });
+            } else {
+                userResults.innerHTML = '<div class="result-item">No users found</div>';
+            }
+            $('#userResults').style.display = 'block';
+        } else {
+            $('#userResults').style.display = 'none';
+        }
+
+        globalSearchResults.style.display = 'block';
+    }
+
+    // Global search event listeners
+    globalSearchInput?.addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            performGlobalSearch(e.target.value);
+        }, 300);
+    });
+
+    $('#globalSearchBtn')?.addEventListener('click', () => {
+        performGlobalSearch(globalSearchInput.value);
+    });
+
+    // Hide search results when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.global-search')) {
+            globalSearchResults.style.display = 'none';
+        }
+    });
+
+    // --- Date Picker Functionality ---
+    function setDateRange(type) {
+        const startDate = $('#startDate');
+        const endDate = $('#endDate');
+        const today = new Date();
+
+        switch (type) {
+            case 'today':
+                const todayStr = today.toISOString().split('T')[0];
+                startDate.value = todayStr;
+                endDate.value = todayStr;
+                break;
+            case 'week':
+                const weekStart = new Date(today);
+                weekStart.setDate(today.getDate() - today.getDay());
+                const weekEnd = new Date(weekStart);
+                weekEnd.setDate(weekStart.getDate() + 6);
+                startDate.value = weekStart.toISOString().split('T')[0];
+                endDate.value = weekEnd.toISOString().split('T')[0];
+                break;
+            case 'month':
+                const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+                const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                startDate.value = monthStart.toISOString().split('T')[0];
+                endDate.value = monthEnd.toISOString().split('T')[0];
+                break;
+        }
+    }
+
+    // Date picker event listeners
+    $('#setTodayBtn')?.addEventListener('click', () => setDateRange('today'));
+    $('#setWeekBtn')?.addEventListener('click', () => setDateRange('week'));
+    $('#setMonthBtn')?.addEventListener('click', () => setDateRange('month'));
+
+    // Announcement event listeners
+    $('#addAnnouncementBtn')?.addEventListener('click', () => {
+        openModal('#addAnnouncementModal');
+    });
+
+    $('#addAnnouncementForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData();
+        formData.append('action', 'create');
+        formData.append('title', $('#announcementTitle').value);
+        formData.append('content', $('#announcementContent').value);
+        formData.append('target_role', $('#announcementTargetRole').value);
+        formData.append('priority', $('#announcementPriority').value);
+
+        await createAnnouncement(formData);
+    });
+
+    // --- Reports Enhancement ---
+    async function populateReportItemDropdown() {
+        try {
+            const res = await fetch('php/inventory.php?limit=1000', { // Get all items
+                credentials: 'include'
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                const dropdown = $('#reportItem');
+                if (dropdown) {
+                    // Clear existing options except "All Items"
+                    dropdown.innerHTML = '<option value="">All Items</option>';
+
+                    // Add all inventory items
+                    data.data.forEach(item => {
+                        const option = document.createElement('option');
+                        option.value = item.id;
+                        option.textContent = `${item.name} - ${item.category} - ${item.location} (${item.quantity} available)`;
+                        dropdown.appendChild(option);
+                    });
+
+                    // Make dropdown searchable
+                    makeDropdownSearchable(dropdown);
+                }
+            }
+        } catch (error) {
+            console.error('Error populating report item dropdown:', error);
+        }
+    }
+
+    // Make dropdown searchable
+    function makeDropdownSearchable(selectElement) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'searchable-dropdown-wrapper';
+
+        const searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.className = 'dropdown-search';
+        searchInput.placeholder = 'Search items...';
+
+        const dropdownContainer = document.createElement('div');
+        dropdownContainer.className = 'dropdown-options';
+        dropdownContainer.style.display = 'none';
+
+        // Store original options
+        const originalOptions = Array.from(selectElement.options);
+
+        // Create dropdown options
+        originalOptions.forEach(option => {
+            const optionDiv = document.createElement('div');
+            optionDiv.className = 'dropdown-option';
+            optionDiv.textContent = option.textContent;
+            optionDiv.dataset.value = option.value;
+
+            optionDiv.onclick = () => {
+                selectElement.value = option.value;
+                searchInput.value = option.textContent;
+                dropdownContainer.style.display = 'none';
+
+                // Trigger change event
+                selectElement.dispatchEvent(new Event('change'));
+            };
+
+            dropdownContainer.appendChild(optionDiv);
+        });
+
+        // Search functionality
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const options = dropdownContainer.querySelectorAll('.dropdown-option');
+
+            options.forEach(option => {
+                const text = option.textContent.toLowerCase();
+                if (text.includes(searchTerm)) {
+                    option.style.display = 'block';
+                } else {
+                    option.style.display = 'none';
+                }
+            });
+        });
+
+        // Show/hide dropdown
+        searchInput.addEventListener('focus', () => {
+            dropdownContainer.style.display = 'block';
+        });
+
+        // Hide dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!wrapper.contains(e.target)) {
+                dropdownContainer.style.display = 'none';
+            }
+        });
+
+        // Replace original select with searchable version
+        selectElement.style.display = 'none';
+        wrapper.appendChild(searchInput);
+        wrapper.appendChild(dropdownContainer);
+        selectElement.parentNode.insertBefore(wrapper, selectElement);
+    }
+
+    // --- Real-Time Announcements System ---
+    async function fetchAnnouncements() {
+        try {
+            const res = await fetch('php/announcements.php', {
+                credentials: 'include'
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                displayAnnouncements(data.data);
+                updateAnnouncementsBanner(data.data);
+            }
+        } catch (error) {
+            console.error('Error fetching announcements:', error);
+        }
+    }
+
+    function displayAnnouncements(announcements) {
+        const container = $('.announcements-list');
+        if (!container) return;
+
+        if (announcements.length === 0) {
+            container.innerHTML = '<div class="no-announcements">No announcements at this time.</div>';
+            return;
+        }
+
+        container.innerHTML = announcements.map(announcement => `
+            <div class="announcement-card priority-${announcement.priority}">
+                <div class="announcement-header">
+                    <h4>${announcement.title}</h4>
+                    <div class="announcement-meta">
+                        <span class="priority-badge priority-${announcement.priority}">${announcement.priority.toUpperCase()}</span>
+                        <span class="target-badge">${announcement.target_role === 'all' ? 'All Users' : announcement.target_role.charAt(0).toUpperCase() + announcement.target_role.slice(1)}</span>
+                        <span class="date">${new Date(announcement.created_at).toLocaleDateString()}</span>
+                    </div>
+                </div>
+                <div class="announcement-content">
+                    <p>${announcement.content}</p>
+                </div>
+                <div class="announcement-actions">
+                    ${currentUser && (currentUser.role === 'admin' || currentUser.role === 'staff') ? `
+                        <button class="btn btn-outline btn-sm edit-announcement" data-id="${announcement.id}">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button class="btn btn-danger btn-sm delete-announcement" data-id="${announcement.id}">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+        `).join('');
+
+        // Add event listeners for edit/delete buttons
+        container.querySelectorAll('.edit-announcement').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const id = e.target.closest('button').dataset.id;
+                editAnnouncement(id);
+            });
+        });
+
+        container.querySelectorAll('.delete-announcement').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const id = e.target.closest('button').dataset.id;
+                deleteAnnouncement(id);
+            });
+        });
+    }
+
+    function updateAnnouncementsBanner(announcements) {
+        const banner = $('#announcementsBanner');
+        if (!banner) return;
+
+        // Filter high priority and urgent announcements
+        const importantAnnouncements = announcements.filter(a =>
+            a.priority === 'high' || a.priority === 'urgent'
+        );
+
+        if (importantAnnouncements.length === 0) {
+            banner.style.display = 'none';
+            return;
+        }
+
+        banner.style.display = 'block';
+        banner.innerHTML = importantAnnouncements.map(announcement => `
+            <div class="announcement-banner-item priority-${announcement.priority}">
+                <div class="banner-content">
+                    <i class="fas fa-bullhorn"></i>
+                    <strong>${announcement.title}:</strong> ${announcement.content}
+                </div>
+                <button class="banner-dismiss" data-id="${announcement.id}">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `).join('');
+
+        // Add dismiss functionality
+        banner.querySelectorAll('.banner-dismiss').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const id = e.target.closest('button').dataset.id;
+                dismissAnnouncement(id);
+            });
+        });
+    }
+
+    async function dismissAnnouncement(id) {
+        try {
+            const res = await fetch('php/announcements.php', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `action=dismiss&announcement_id=${id}`,
+                credentials: 'include'
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                fetchAnnouncements(); // Refresh announcements
+            }
+        } catch (error) {
+            console.error('Error dismissing announcement:', error);
+        }
+    }
+
+    async function createAnnouncement(formData) {
+        try {
+            const res = await fetch('php/announcements.php', {
+                method: 'POST',
+                body: formData,
+                credentials: 'include'
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                showToast('Announcement created successfully', 'success');
+                closeModal('#addAnnouncementModal');
+                fetchAnnouncements();
+                $('#addAnnouncementForm').reset();
+            } else {
+                showToast(data.message || 'Failed to create announcement', 'danger');
+            }
+        } catch (error) {
+            console.error('Error creating announcement:', error);
+            showToast('Failed to create announcement', 'danger');
+        }
+    }
+
+    function editAnnouncement(id) {
+        // For now, just show a message - can be enhanced later
+        showToast('Edit functionality coming soon', 'info');
+    }
+
+    async function deleteAnnouncement(id) {
+        if (!confirm('Are you sure you want to delete this announcement?')) return;
+
+        try {
+            const res = await fetch('php/announcements.php', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `id=${id}`,
+                credentials: 'include'
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                showToast('Announcement deleted successfully', 'success');
+                fetchAnnouncements();
+            } else {
+                showToast(data.message || 'Failed to delete announcement', 'danger');
+            }
+        } catch (error) {
+            console.error('Error deleting announcement:', error);
+            showToast('Failed to delete announcement', 'danger');
+        }
+    }
+
+    // Auto-refresh announcements every 60 seconds
+    let announcementRefreshInterval;
+
+    function startAnnouncementAutoRefresh() {
+        fetchAnnouncements(); // Initial load
+
+        announcementRefreshInterval = setInterval(() => {
+            fetchAnnouncements();
+        }, 60000); // 60 seconds
+    }
+
+    function stopAnnouncementAutoRefresh() {
+        if (announcementRefreshInterval) {
+            clearInterval(announcementRefreshInterval);
+            announcementRefreshInterval = null;
+        }
+    }
+
+    // Initialize report item dropdown when page loads
+    if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'staff')) {
+        populateReportItemDropdown();
+    }
+
+    // Contact user form handler
+    $('#contactUserForm')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await sendContactMessage();
+    });
+
+    // Close modal handlers for new modals
+    $('.close-modal-btn')?.addEventListener('click', () => {
+        closeModal('#contactUserModal');
+    });
 
     // --- Inventory Management Event Handlers ---
     function populateEditForm(item) {
@@ -1382,11 +2322,28 @@ document.addEventListener('DOMContentLoaded', function () {
     // Handle form submission
     requestForm.addEventListener('submit', async function(e) {
         e.preventDefault();
-        
+
+        const itemId = $('#requestItem').value;
+        const quantity = $('#requestQuantity').value;
+        const neededBy = $('#requestDate').value;
+        const purpose = $('#requestPurpose').value;
+
+        // Validation
+        if (!itemId || !quantity || !neededBy || !purpose.trim()) {
+            showToast('Please fill in all fields', 'warning');
+            return;
+        }
+
+        if (quantity < 1 || quantity > 10) {
+            showToast('Quantity must be between 1 and 10', 'warning');
+            return;
+        }
+
         const formData = new FormData();
-        formData.append('item_id', $('#requestItem').value);
-        formData.append('needed_by', $('#requestDate').value);
-        formData.append('purpose', $('#requestPurpose').value);
+        formData.append('item_id', itemId);
+        formData.append('quantity', quantity);
+        formData.append('needed_by', neededBy);
+        formData.append('purpose', purpose);
         
         try {
             const res = await fetch('php/request.php', {

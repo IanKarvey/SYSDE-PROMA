@@ -39,6 +39,11 @@
         </div>
     </div>
     <div class="container" id="mainApp" style="display:none;">
+        <!-- Announcements Banner -->
+        <div id="announcementsBanner" class="announcements-banner" style="display: none;">
+            <!-- Announcements will be populated here -->
+        </div>
+
         <!-- Sidebar Navigation -->
         <aside class="sidebar">
             <div class="logo">
@@ -78,6 +83,10 @@
                         <i class="fas fa-users"></i>
                         <span>User Management</span>
                     </li>
+                    <li data-section="announcements" class="admin-only">
+                        <i class="fas fa-bullhorn"></i>
+                        <span>Announcements</span>
+                    </li>
                 </ul>
             </nav>
             <div class="user-profile">
@@ -100,19 +109,45 @@
         <!-- Main Content Area -->
         <main class="main-content">
             <header class="top-bar">
-                <div class="search-bar">
-                    <i class="fas fa-search"></i>
-                    <input type="text" placeholder="Search...">
+                <div class="global-search">
+                    <div class="search-container">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="globalSearch" placeholder="Search inventory, requests, users..." class="global-search-input">
+                        <button class="search-btn" id="globalSearchBtn">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                    <div class="search-results" id="globalSearchResults" style="display: none;">
+                        <div class="search-results-content">
+                            <div class="search-section" id="inventoryResults">
+                                <h5>Inventory Items</h5>
+                                <div class="results-list"></div>
+                            </div>
+                            <div class="search-section" id="requestResults">
+                                <h5>Requests</h5>
+                                <div class="results-list"></div>
+                            </div>
+                            <div class="search-section" id="userResults">
+                                <h5>Users</h5>
+                                <div class="results-list"></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="notification-bell" id="notificationBell">
-                    <i class="fas fa-bell"></i>
-                    <span class="notification-count">3</span>
-                    <div class="notification-dropdown" id="notificationDropdown" style="display:none;">
-                        <div class="dropdown-header">Notifications</div>
-                        <ul class="dropdown-list" id="notificationList">
-                            <!-- Notifications will be populated by JS -->
-                        </ul>
-                        <div class="dropdown-footer"><button class="btn btn-outline" id="markAllReadBtn">Mark all as read</button></div>
+                <div class="header-actions">
+                    <button class="btn btn-outline back-btn" id="backBtn" style="display: none;">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </button>
+                    <div class="notification-bell" id="notificationBell">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-count">3</span>
+                        <div class="notification-dropdown" id="notificationDropdown" style="display:none;">
+                            <div class="dropdown-header">Notifications</div>
+                            <ul class="dropdown-list" id="notificationList">
+                                <!-- Notifications will be populated by JS -->
+                            </ul>
+                            <div class="dropdown-footer"><button class="btn btn-outline" id="markAllReadBtn">Mark all as read</button></div>
+                        </div>
                     </div>
                 </div>
             </header>
@@ -299,12 +334,17 @@
                             </select>
                         </div>
                         <div class="form-group">
+                            <label for="requestQuantity">Quantity Needed:</label>
+                            <input type="number" id="requestQuantity" min="1" max="10" value="1" required>
+                            <small class="form-help">Maximum 10 units per request</small>
+                        </div>
+                        <div class="form-group">
                             <label for="requestDate">Needed By:</label>
                             <input type="date" id="requestDate" required>
                         </div>
                         <div class="form-group">
                             <label for="requestPurpose">Purpose:</label>
-                            <textarea id="requestPurpose" required rows="3"></textarea>
+                            <textarea id="requestPurpose" required rows="3" placeholder="Please describe the purpose of your request..."></textarea>
                         </div>
                         <div class="form-actions">
                             <button type="submit" class="btn btn-primary">Submit Request</button>
@@ -320,6 +360,7 @@
                             <tr>
                                 <th>Request ID</th>
                                 <th>Item</th>
+                                <th>Quantity</th>
                                 <th>Requested By</th>
                                 <th>Date Requested</th>
                                 <th>Needed By</th>
@@ -432,6 +473,14 @@
                             <option value="issues">Reported Issues</option>
                         </select>
                     </div>
+
+                    <div class="filter-group">
+                        <label for="reportItem">Select Item:</label>
+                        <select id="reportItem" class="searchable-dropdown">
+                            <option value="">All Items</option>
+                            <!-- Items will be populated dynamically -->
+                        </select>
+                    </div>
                     <div class="filter-group">
                         <label for="reportPeriod">Time Period:</label>
                         <select id="reportPeriod">
@@ -443,10 +492,17 @@
                         </select>
                     </div>
                     <div class="filter-group custom-range" style="display: none;">
-                        <label for="startDate">From:</label>
-                        <input type="date" id="startDate">
-                        <label for="endDate">To:</label>
-                        <input type="date" id="endDate">
+                        <div class="date-picker-group">
+                            <label for="startDate">From:</label>
+                            <input type="date" id="startDate" class="date-picker">
+                        </div>
+                        <div class="date-picker-group">
+                            <label for="endDate">To:</label>
+                            <input type="date" id="endDate" class="date-picker">
+                        </div>
+                        <button type="button" class="btn btn-outline btn-sm" id="setTodayBtn">Today</button>
+                        <button type="button" class="btn btn-outline btn-sm" id="setWeekBtn">This Week</button>
+                        <button type="button" class="btn btn-outline btn-sm" id="setMonthBtn">This Month</button>
                     </div>
                     <button class="btn btn-primary" id="generateReportBtn">
                         <i class="fas fa-chart-bar"></i> Generate Report
@@ -594,6 +650,22 @@
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Announcements Section -->
+            <section id="announcements" class="content-section">
+                <div class="section-header">
+                    <h1>Announcements</h1>
+                    <button class="btn btn-primary" id="addAnnouncementBtn">
+                        <i class="fas fa-plus"></i> New Announcement
+                    </button>
+                </div>
+
+                <div class="announcements-container">
+                    <div class="announcements-list">
+                        <!-- Announcements will be populated here by JavaScript -->
                     </div>
                 </div>
             </section>
@@ -928,6 +1000,95 @@
                     <button class="btn btn-primary" id="printReceiptBtn">Print Receipt</button>
                     <button class="btn btn-outline" id="downloadQRBtn">Download QR Code</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Announcement Modal -->
+    <div class="modal" id="addAnnouncementModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Create New Announcement</h3>
+                <button class="close-modal-btn" title="Cancel" aria-label="Cancel">
+                    <i class="fas fa-times"></i>
+                    <span class="close-tooltip">Cancel</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="addAnnouncementForm">
+                    <div class="form-group">
+                        <label for="announcementTitle">Title:</label>
+                        <input type="text" id="announcementTitle" required maxlength="255">
+                    </div>
+                    <div class="form-group">
+                        <label for="announcementContent">Content:</label>
+                        <textarea id="announcementContent" rows="5" required placeholder="Enter announcement content..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="announcementTargetRole">Target Audience:</label>
+                        <select id="announcementTargetRole" required>
+                            <option value="all">All Users</option>
+                            <option value="student">Students Only</option>
+                            <option value="staff">Staff Only</option>
+                            <option value="admin">Administrators Only</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="announcementPriority">Priority:</label>
+                        <select id="announcementPriority" required>
+                            <option value="normal">Normal</option>
+                            <option value="high">High</option>
+                            <option value="urgent">Urgent</option>
+                        </select>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-bullhorn"></i> Create Announcement
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contact User Modal -->
+    <div class="modal" id="contactUserModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Contact User</h3>
+                <button class="close-modal-btn" title="Cancel" aria-label="Cancel">
+                    <i class="fas fa-times"></i>
+                    <span class="close-tooltip">Cancel</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="contactUserForm">
+                    <div class="form-group">
+                        <label for="contactUserName">To:</label>
+                        <input type="text" id="contactUserName" readonly>
+                        <input type="hidden" id="contactUserId">
+                    </div>
+                    <div class="form-group">
+                        <label for="contactSubject">Subject:</label>
+                        <select id="contactSubject" required>
+                            <option value="">Select subject...</option>
+                            <option value="request_clarification">Request Clarification</option>
+                            <option value="approval_notification">Approval Notification</option>
+                            <option value="return_reminder">Return Reminder</option>
+                            <option value="equipment_issue">Equipment Issue</option>
+                            <option value="general">General Inquiry</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="contactMessage">Message:</label>
+                        <textarea id="contactMessage" rows="5" required placeholder="Type your message here..."></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane"></i> Send Message
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>

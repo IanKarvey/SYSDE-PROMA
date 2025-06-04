@@ -80,9 +80,9 @@ CREATE TABLE issues (
 -- Sample Data
 INSERT INTO users (first_name, last_name, email, password, role, department) VALUES
 ('Ian Karvey', 'Manimtim', 'ian_karvey_manimtim@dlsl.edu.ph', '123', 'student', 'Computer Science'),
-('Admin Ian', 'Manimtim', 'admin@dlsl.edu.ph', '123', 'staff', 'Laboratory Staff'),
-('Jane', 'Smith', 'jane.smith@dlsl.edu.ph', '123', 'faculty', 'Biology'),
-('Alice', 'Cooper', 'alice.cooper@dlsl.edu.ph', '123', 'student', 'Physics');
+('Admin', 'Manimtim', 'admin@dlsl.edu.ph', '123', 'staff', 'Laboratory Staff'),
+('MIchael', 'Panuela', 'michael_josh_panuela@dlsl.edu.ph', '123', 'faculty', 'Biology'),
+('Aaron', 'Manalo', 'john_aaron_manalo@dlsl.edu.ph', '123', 'student', 'Physics');
 
 INSERT INTO inventory (name, category, quantity, status, location, description, image, last_checked) VALUES
 ('Microscope', 'equipment', 10, 'available', 'Lab A', 'High precision microscope', NULL, '2024-06-01 10:00:00'),

@@ -29,6 +29,42 @@ $user = get_user();
 
 if ($method === 'GET') {
     try {
+        // Handle duplicate check action - Enhanced to check by name only
+        if (isset($_GET['action']) && $_GET['action'] === 'check_duplicate') {
+            $name = trim($_GET['name'] ?? '');
+
+            if (!$name) {
+                echo json_encode(['success' => false, 'message' => 'Item name is required for duplicate check.']);
+                exit;
+            }
+
+            // Check for any item with the same name (case-insensitive)
+            $stmt = $pdo->prepare('SELECT id, name, category, location, quantity FROM inventory WHERE LOWER(name) = LOWER(?) AND status = "available"');
+            $stmt->execute([$name]);
+            $duplicates = $stmt->fetchAll();
+
+            if (!empty($duplicates)) {
+                // Return all duplicates for user to choose from
+                $sanitized_duplicates = array_map(function($duplicate) {
+                    return [
+                        'id' => (int)$duplicate['id'],
+                        'name' => htmlspecialchars($duplicate['name'], ENT_QUOTES, 'UTF-8'),
+                        'category' => htmlspecialchars($duplicate['category'], ENT_QUOTES, 'UTF-8'),
+                        'location' => htmlspecialchars($duplicate['location'], ENT_QUOTES, 'UTF-8'),
+                        'quantity' => (int)$duplicate['quantity']
+                    ];
+                }, $duplicates);
+
+                echo json_encode([
+                    'success' => true,
+                    'duplicates' => $sanitized_duplicates
+                ]);
+            } else {
+                echo json_encode(['success' => true, 'duplicates' => []]);
+            }
+            exit;
+        }
+
         // Check if requesting a specific item
         if (isset($_GET['id'])) {
             $id = intval($_GET['id']);
@@ -114,22 +150,114 @@ if ($method === 'GET') {
 if ($method === 'POST') {
     require_login();
     require_staff_admin($user);
-    $name = sanitize_string($_POST['name'] ?? '');
-    $category = sanitize_string($_POST['category'] ?? '');
+
+    // Enhanced input validation and sanitization
+    $name = trim(sanitize_string($_POST['name'] ?? ''));
+    $category = trim(sanitize_string($_POST['category'] ?? ''));
     $quantity = intval($_POST['quantity'] ?? 1);
     $status = sanitize_string($_POST['status'] ?? 'available');
-    $location = sanitize_string($_POST['location'] ?? '');
-    $description = sanitize_string($_POST['description'] ?? '');
+    $location = trim(sanitize_string($_POST['location'] ?? ''));
+    $description = trim(sanitize_string($_POST['description'] ?? ''));
     $last_checked = $_POST['last_checked'] ?? null;
+
+    // Validate required fields
+    if (empty($name) || empty($category) || empty($location)) {
+        echo json_encode(['success' => false, 'message' => 'Name, category, and location are required.']);
+        exit;
+    }
+
+    // Validate quantity
+    if ($quantity < 1 || $quantity > 10000) {
+        echo json_encode(['success' => false, 'message' => 'Quantity must be between 1 and 10,000.']);
+        exit;
+    }
+
+    // Validate status
+    $valid_statuses = ['available', 'checked-out', 'maintenance', 'damaged'];
+    if (!in_array($status, $valid_statuses)) {
+        echo json_encode(['success' => false, 'message' => 'Invalid status.']);
+        exit;
+    }
+
+    try {
+        // Enhanced duplicate detection - check for exact match first (name + category + location)
+        $stmt = $pdo->prepare('SELECT id, quantity FROM inventory WHERE LOWER(name) = LOWER(?) AND LOWER(category) = LOWER(?) AND LOWER(location) = LOWER(?) AND status = "available"');
+        $stmt->execute([$name, $category, $location]);
+        $exact_match = $stmt->fetch();
+
+        if ($exact_match) {
+            // Update existing item quantity for exact match
+            $new_quantity = $exact_match['quantity'] + $quantity;
+            $stmt = $pdo->prepare('UPDATE inventory SET quantity = ?, last_checked = NOW() WHERE id = ?');
+            $stmt->execute([$new_quantity, $exact_match['id']]);
+
+            echo json_encode([
+                'success' => true,
+                'message' => "Added $quantity units to existing item. New total: $new_quantity units.",
+                'action' => 'updated',
+                'item_id' => $exact_match['id'],
+                'new_quantity' => $new_quantity
+            ]);
+            exit;
+        }
+
+        // Check for name-only duplicates (for user confirmation)
+        $stmt = $pdo->prepare('SELECT id, name, category, location, quantity FROM inventory WHERE LOWER(name) = LOWER(?) AND status = "available"');
+        $stmt->execute([$name]);
+        $name_duplicates = $stmt->fetchAll();
+
+        // If name duplicates exist but user chose to create separate item, continue with creation
+        // This will be handled by frontend confirmation
+
+    } catch (PDOException $e) {
+        error_log("Database error during duplicate check: " . $e->getMessage());
+        echo json_encode(['success' => false, 'message' => 'Database error occurred.']);
+        exit;
+    }
+
     $image = null;
-    // Handle file upload
+    // Handle secure file upload
     if (!empty($_FILES['image']['name'])) {
+        $upload_error = $_FILES['image']['error'];
+        if ($upload_error !== UPLOAD_ERR_OK) {
+            echo json_encode(['success' => false, 'message' => 'File upload error.']);
+            exit;
+        }
+
+        // Validate file type
+        $allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        $file_type = $_FILES['image']['type'];
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $detected_type = finfo_file($finfo, $_FILES['image']['tmp_name']);
+        finfo_close($finfo);
+
+        if (!in_array($detected_type, $allowed_types) || !in_array($file_type, $allowed_types)) {
+            echo json_encode(['success' => false, 'message' => 'Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.']);
+            exit;
+        }
+
+        // Validate file size (max 5MB)
+        $max_size = 5 * 1024 * 1024; // 5MB
+        if ($_FILES['image']['size'] > $max_size) {
+            echo json_encode(['success' => false, 'message' => 'File too large. Maximum size is 5MB.']);
+            exit;
+        }
+
         $target_dir = '../uploads/';
-        if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
-        $filename = uniqid() . '_' . basename($_FILES['image']['name']);
+        if (!is_dir($target_dir)) {
+            mkdir($target_dir, 0755, true);
+        }
+
+        // Generate secure filename
+        $extension = pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION);
+        $filename = uniqid('img_', true) . '.' . strtolower($extension);
         $target_file = $target_dir . $filename;
+
         if (move_uploaded_file($_FILES['image']['tmp_name'], $target_file)) {
             $image = $filename;
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Failed to upload file.']);
+            exit;
         }
     }
     $stmt = $pdo->prepare('INSERT INTO inventory (name, category, quantity, status, location, description, image, last_checked) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
