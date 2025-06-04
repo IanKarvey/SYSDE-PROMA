@@ -1,18 +1,18 @@
 :root {
-    /* Professional College Campus Color Scheme */
-    --primary-color: #1e3a8a;        /* Deep Blue - Academic */
-    --primary-light: #3b82f6;        /* Lighter Blue */
-    --primary-dark: #1e40af;         /* Darker Blue */
-    --secondary-color: #059669;      /* Professional Green */
-    --accent-color: #7c3aed;         /* Purple Accent */
-    --danger-color: #dc2626;         /* Professional Red */
-    --warning-color: #d97706;        /* Amber Warning */
-    --info-color: #0ea5e9;           /* Sky Blue */
-    --success-color: #059669;        /* Emerald Green */
+    /* DE LA SALLE LIPA INSTITUTIONAL THEME */
+    --primary-color: #1B5E20;        /* De La Salle Primary Green */
+    --primary-light: #4CAF50;        /* Accent Green */
+    --primary-dark: #0D4E14;         /* Darker Green */
+    --secondary-color: #2E7D32;      /* Secondary Green */
+    --accent-color: #81C784;         /* Light Green Accent */
+    --danger-color: #F44336;         /* Professional Red */
+    --warning-color: #FF9800;        /* Amber Warning */
+    --info-color: #2196F3;           /* Blue Info */
+    --success-color: #4CAF50;        /* Green Success */
 
     /* Neutral Colors */
-    --dark-color: #1f2937;           /* Dark Gray */
-    --light-color: #f8fafc;          /* Very Light Gray */
+    --dark-color: #2E7D32;           /* Dark Green Text */
+    --light-color: #F1F8E9;          /* Very Light Green Background */
     --gray-50: #f9fafb;
     --gray-100: #f3f4f6;
     --gray-200: #e5e7eb;
@@ -25,22 +25,22 @@
     --gray-900: #111827;
 
     /* UI Component Colors */
-    --sidebar-bg: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+    --sidebar-bg: linear-gradient(135deg, #1B5E20 0%, #0D4E14 100%);
     --sidebar-text: #ffffff;
-    --sidebar-active: #3b82f6;
+    --sidebar-active: #4CAF50;
     --header-bg: #ffffff;
     --card-bg: #ffffff;
-    --text-color: #1f2937;
-    --text-light: #6b7280;
-    --border-color: #e5e7eb;
+    --text-color: #424242;
+    --text-light: #757575;
+    --border-color: #E0E0E0;
 
     /* Status Colors */
-    --pending-color: #d97706;
-    --approved-color: #059669;
-    --rejected-color: #dc2626;
-    --open-color: #dc2626;
-    --in-progress-color: #d97706;
-    --resolved-color: #059669;
+    --pending-color: #FF9800;
+    --approved-color: #4CAF50;
+    --rejected-color: #F44336;
+    --open-color: #F44336;
+    --in-progress-color: #FF9800;
+    --resolved-color: #4CAF50;
 
     /* Shadows and Effects */
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
@@ -65,13 +65,46 @@
 }
 
 body {
-    background: linear-gradient(135deg, var(--gray-50) 0%, var(--gray-100) 100%);
+    /* Default background without image */
+    background: linear-gradient(135deg, #F1F8E9 0%, #E8F5E8 100%);
     color: var(--text-color);
     font-size: 14px;
     line-height: 1.6;
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+}
+
+/* Login Page Background with Custom Image */
+body.login-page {
+    background:
+        linear-gradient(135deg, rgba(27, 94, 32, 0.7) 0%, rgba(46, 125, 50, 0.7) 100%),
+        url('images/background.jpg') center center/cover no-repeat fixed;
+    background-color: #1B5E20; /* Fallback color */
+}
+
+/* Dashboard Background with Custom Image */
+#dashboard.content-section.active {
+    background:
+        linear-gradient(135deg, rgba(241, 248, 233, 0.95) 0%, rgba(232, 245, 232, 0.95) 100%),
+        url('images/background.jpg') center center/cover no-repeat fixed;
+    background-color: #F1F8E9; /* Fallback color */
+    border-radius: 12px;
+    margin: 10px;
+    min-height: calc(100vh - 20px);
+}
+
+/* Alternative background styles for other sections if needed */
+body.bg-subtle {
+    background:
+        linear-gradient(135deg, rgba(241, 248, 233, 0.95) 0%, rgba(232, 245, 232, 0.95) 100%),
+        url('images/background.jpg') center center/cover no-repeat fixed;
+}
+
+body.bg-overlay {
+    background:
+        linear-gradient(135deg, rgba(27, 94, 32, 0.1) 0%, rgba(46, 125, 50, 0.1) 100%),
+        url('images/background.jpg') center center/cover no-repeat fixed;
 }
 
 .container {
@@ -99,7 +132,7 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(135deg, rgba(30, 58, 138, 0.95) 0%, rgba(30, 64, 175, 0.95) 100%);
+    background: linear-gradient(135deg, rgba(27, 94, 32, 0.95) 0%, rgba(13, 78, 20, 0.95) 100%);
     backdrop-filter: blur(10px);
     z-index: -1;
 }
@@ -110,23 +143,94 @@ body {
     padding: 24px 20px;
     font-size: 1.75rem;
     font-weight: 700;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-    background: rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(129, 199, 132, 0.2) 100%);
     letter-spacing: -0.025em;
+    backdrop-filter: blur(5px);
+    position: relative;
+    z-index: 2;
 }
 
+.logo-image {
+    height: 60px;
+    width: auto;
+    max-width: 80px;
+    margin-right: 15px;
+    object-fit: contain;
+    filter: brightness(1.1) contrast(1.1);
+    transition: all 0.3s ease;
+}
+
+.logo-image:hover {
+    filter: brightness(1.2) contrast(1.2);
+    transform: scale(1.05);
+}
+
+/* Fallback icon styling (if image fails to load) */
 .logo i {
     margin-right: 12px;
     font-size: 2rem;
-    background: linear-gradient(135deg, #60a5fa, #a78bfa);
+    background: linear-gradient(135deg, #4CAF50, #81C784);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
 }
 
+/* Login Page Logo Styling */
+.login-logo {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.login-logo-image {
+    height: 80px;
+    width: auto;
+    max-width: 120px;
+    object-fit: contain;
+    filter: brightness(1.1) contrast(1.1);
+    transition: all 0.3s ease;
+}
+
+.login-logo-image:hover {
+    filter: brightness(1.2) contrast(1.2);
+    transform: scale(1.05);
+}
+
 .nav-links {
     flex: 1;
     padding: 20px 0;
+    background: linear-gradient(
+        180deg,
+        rgba(27, 94, 32, 0.9) 0%,
+        rgba(46, 125, 50, 0.85) 25%,
+        rgba(27, 94, 32, 0.95) 50%,
+        rgba(13, 78, 20, 0.9) 75%,
+        rgba(27, 94, 32, 1) 100%
+    ),
+    repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 10px,
+        rgba(255, 255, 255, 0.02) 10px,
+        rgba(255, 255, 255, 0.02) 20px
+    );
+    position: relative;
+    overflow: hidden;
+}
+
+.nav-links::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(
+        ellipse at center,
+        rgba(129, 199, 132, 0.1) 0%,
+        transparent 70%
+    );
+    pointer-events: none;
 }
 
 .nav-links li {
@@ -135,8 +239,11 @@ body {
     display: flex;
     align-items: center;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     border-left: 3px solid transparent;
+    position: relative;
+    z-index: 1;
+    backdrop-filter: blur(2px);
 }
 
 .nav-links li i {
@@ -145,12 +252,28 @@ body {
 }
 
 .nav-links li:hover {
-    background-color: rgba(255, 255, 255, 0.1);
+    background: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.15) 0%,
+        rgba(129, 199, 132, 0.2) 50%,
+        rgba(255, 255, 255, 0.1) 100%
+    );
+    transform: translateX(5px);
+    box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.1);
 }
 
 .nav-links li.active {
-    background-color: rgba(255, 255, 255, 0.1);
+    background: linear-gradient(
+        90deg,
+        rgba(76, 175, 80, 0.3) 0%,
+        rgba(129, 199, 132, 0.25) 50%,
+        rgba(255, 255, 255, 0.15) 100%
+    );
     border-left: 3px solid var(--sidebar-active);
+    box-shadow:
+        inset 0 0 25px rgba(76, 175, 80, 0.2),
+        0 2px 10px rgba(0, 0, 0, 0.1);
+    transform: translateX(3px);
 }
 
 .user-profile {
@@ -172,8 +295,8 @@ body {
     width: 45px;
     height: 45px;
     border-radius: 12px;
-    background: linear-gradient(135deg, var(--sidebar-active), #2980b9);
-    box-shadow: 0 4px 15px rgba(52, 152, 219, 0.2);
+    background: linear-gradient(135deg, var(--sidebar-active), #2E7D32);
+    box-shadow: 0 4px 15px rgba(76, 175, 80, 0.2);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -219,7 +342,8 @@ body {
 .search-bar {
     display: flex;
     align-items: center;
-    background-color: #f5f7fa;
+    background-color: #F1F8E9;
+    border: 1px solid #C8E6C9;
     border-radius: 20px;
     padding: 8px 15px;
     width: 300px;
@@ -633,7 +757,7 @@ th {
     font-size: 0.875rem;
     font-weight: 600;
     margin-bottom: 8px;
-    color: var(--gray-700);
+    color: var(--dark-color);
     letter-spacing: 0.025em;
 }
 
@@ -641,10 +765,10 @@ th {
 .form-group select,
 .form-group textarea {
     padding: 14px 16px;
-    border: 2px solid var(--gray-200);
+    border: 2px solid var(--border-color);
     border-radius: var(--radius-md);
     font-size: 1rem;
-    background: var(--gray-50);
+    background: #FAFAFA;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     font-weight: 500;
 }
@@ -660,7 +784,7 @@ th {
     border-color: var(--primary-color);
     background: white;
     outline: none;
-    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+    box-shadow: 0 0 0 3px rgba(27, 94, 32, 0.1);
     transform: translateY(-1px);
 }
 
@@ -702,31 +826,63 @@ th {
 .logout-btn {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    margin-top: 12px;
+    justify-content: center;
+    gap: 10px;
+    padding: 12px 20px;
+    margin-top: 15px;
     width: 100%;
-    background: rgba(231, 76, 60, 0.1);
+    background: linear-gradient(135deg, #F44336 0%, #D32F2F 100%);
     border: none;
-    color: #e74c3c;
-    border-radius: 6px;
+    color: white;
+    border-radius: 12px;
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    font-size: 0.9rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    box-shadow:
+        0 4px 15px rgba(244, 67, 54, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.logout-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+.logout-btn:hover::before {
+    left: 100%;
 }
 
 .logout-btn:hover {
-    background: rgba(231, 76, 60, 0.15);
-    transform: translateX(4px);
+    background: linear-gradient(135deg, #E53935 0%, #C62828 100%);
+    transform: translateY(-2px);
+    box-shadow:
+        0 6px 20px rgba(244, 67, 54, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.logout-btn:active {
+    transform: translateY(0);
+    box-shadow:
+        0 2px 8px rgba(244, 67, 54, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .logout-btn i {
     font-size: 1.1rem;
-    transition: transform 0.3s ease;
+    transition: all 0.3s ease;
 }
 
 .logout-btn:hover i {
-    transform: translateX(3px);
+    transform: rotate(15deg) scale(1.1);
 }
 
 /* Logout Animation */
@@ -815,6 +971,31 @@ th {
     .main-content { padding: 10px; }
     .top-bar { padding: 0 10px; }
     .charts-container { grid-template-columns: 1fr; }
+
+    /* Responsive logo sizing for tablets */
+    .logo-image {
+        height: 50px;
+        max-width: 70px;
+    }
+
+    .login-logo-image {
+        height: 70px;
+        max-width: 100px;
+    }
+
+    /* Responsive sidebar navigation for tablets */
+    .nav-links li:hover {
+        transform: translateX(3px);
+    }
+
+    .nav-links li.active {
+        transform: translateX(2px);
+    }
+
+    .logout-btn {
+        padding: 10px 16px;
+        font-size: 0.9rem;
+    }
 }
 
 @media (max-width: 600px) {
@@ -823,6 +1004,46 @@ th {
     .stats-container { grid-template-columns: 1fr; }
     .charts-container { grid-template-columns: 1fr; }
     .sidebar { display: none; }
+
+    /* Responsive logo sizing for mobile */
+    .logo-image {
+        height: 40px;
+        max-width: 60px;
+        margin-right: 10px;
+    }
+
+    .login-logo-image {
+        height: 60px;
+        max-width: 90px;
+    }
+
+    .login-logo {
+        margin-bottom: 15px;
+    }
+
+    /* Mobile sidebar navigation adjustments */
+    .nav-links {
+        padding: 15px 0;
+    }
+
+    .nav-links li {
+        padding: 10px 15px;
+    }
+
+    .nav-links li:hover,
+    .nav-links li.active {
+        transform: none; /* Disable transforms on mobile for better touch experience */
+    }
+
+    .logout-btn {
+        padding: 10px 15px;
+        font-size: 0.85rem;
+        margin-top: 10px;
+    }
+
+    .logout-btn:hover {
+        transform: none; /* Disable hover transforms on mobile */
+    }
 }
 
 /* Animations for table row add/remove */
@@ -931,7 +1152,7 @@ tr.added-row {
 
 .dropdown-footer {
     padding: 10px 18px;
-    background: #f5f7fa;
+    background: #F1F8E9;
     text-align: right;
 }
 
@@ -1072,7 +1293,7 @@ thead {
 .filter-group input:focus {
     border-color: var(--primary-color);
     outline: none;
-    box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+    box-shadow: 0 0 0 3px rgba(27, 94, 32, 0.1);
 }
 
 /* Student History Modal Styles */
@@ -2091,7 +2312,7 @@ button:disabled {
 
 .auth-codes-header h3 {
     margin-bottom: 0.5rem;
-    color: #333;
+    color: var(--dark-color);
 }
 
 .auth-codes-description {
@@ -2738,7 +2959,7 @@ body.user-staff .admin-staff-only {
 .request-form-container h3,
 .checkin-form-container h3 {
     margin-bottom: 0.5rem;
-    color: #495057;
+    color: var(--dark-color);
 }
 
 .form-description {

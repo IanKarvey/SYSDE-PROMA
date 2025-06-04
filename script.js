@@ -2061,6 +2061,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 updateUserUI(data.user);
                 loginScreen.style.display = 'none';
                 mainApp.style.display = '';
+                document.body.classList.remove('login-page');
                 showToast(`Welcome back, ${data.user.first_name}!`, 'success');
 
                 // Load all modules
@@ -2109,6 +2110,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 updateUserUI(data.user);
                 loginScreen.style.display = 'none';
                 mainApp.style.display = '';
+                document.body.classList.remove('login-page');
 
                 // Load all modules now that user is authenticated
                 fetchInventory();
@@ -2135,12 +2137,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 // No existing session, show login screen
                 mainApp.style.display = 'none';
                 loginScreen.style.display = 'flex';
+                document.body.classList.add('login-page');
             }
         } catch (error) {
             console.error('Session check error:', error);
             // On error, show login screen
             mainApp.style.display = 'none';
             loginScreen.style.display = 'flex';
+            document.body.classList.add('login-page');
         }
     }
 
@@ -3238,6 +3242,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     updateUserUI(null);
                     mainApp.style.display = 'none';
                     loginScreen.style.display = 'flex';
+                    document.body.classList.add('login-page');
                     mainApp.classList.remove('logging-out');
                     
                     // Reset login form
