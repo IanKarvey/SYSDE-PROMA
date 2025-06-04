@@ -1936,4 +1936,874 @@ button:disabled {
         max-width: 90%;
         margin: 20px;
     }
+
+    .auth-code-input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .auth-code-input-group .btn {
+        margin-top: 0.5rem;
+    }
+
+    /* Authorization Codes Mobile Responsive */
+    .auth-codes-list {
+        grid-template-columns: 1fr;
+    }
+
+    .auth-code-details {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+
+    .auth-code-value {
+        font-size: 1rem;
+        letter-spacing: 1px;
+    }
+
+    .auth-code-actions {
+        flex-direction: column;
+    }
+
+    .auth-code-actions .btn {
+        width: 100%;
+    }
+
+    .tab-buttons {
+        flex-direction: column;
+    }
+
+    .tab-btn {
+        border-bottom: 1px solid #e9ecef;
+        border-radius: 0;
+    }
+
+    .tab-btn.active {
+        border-bottom-color: #007bff;
+        background-color: #f8f9fa;
+    }
+}
+
+/* Authorization Code Styling */
+.authorization-code-section {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.auth-code-input-group {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.auth-code-input-group input {
+    flex: 1;
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.auth-code-input-group input.valid {
+    border-color: #28a745;
+    background-color: #f8fff9;
+}
+
+.auth-code-input-group input.invalid {
+    border-color: #dc3545;
+    background-color: #fff8f8;
+}
+
+.form-help.success {
+    color: #28a745;
+    font-weight: 500;
+}
+
+.form-help.error {
+    color: #dc3545;
+    font-weight: 500;
+}
+
+/* Requests Tabs Styling */
+.requests-tabs {
+    margin-bottom: 1.5rem;
+}
+
+.tab-buttons {
+    display: flex;
+    border-bottom: 2px solid #e9ecef;
+    margin-bottom: 1rem;
+}
+
+.tab-btn {
+    background: none;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #6c757d;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.tab-btn:hover {
+    color: #007bff;
+    background-color: #f8f9fa;
+}
+
+.tab-btn.active {
+    color: #007bff;
+    border-bottom-color: #007bff;
+    background-color: #fff;
+}
+
+.tab-badge {
+    background: #007bff;
+    color: white;
+    border-radius: 12px;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    min-width: 1.5rem;
+    text-align: center;
+}
+
+.tab-content {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Authorization Codes Styling */
+.auth-codes-header {
+    margin-bottom: 1.5rem;
+}
+
+.auth-codes-header h3 {
+    margin-bottom: 0.5rem;
+    color: #333;
+}
+
+.auth-codes-description {
+    color: #6c757d;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.auth-codes-description a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.auth-codes-description a:hover {
+    text-decoration: underline;
+}
+
+.auth-codes-container {
+    min-height: 200px;
+}
+
+.auth-codes-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1rem;
+}
+
+.auth-code-card {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1.25rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.auth-code-card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    transform: translateY(-2px);
+}
+
+.auth-code-card.status-active {
+    border-left: 4px solid #28a745;
+}
+
+.auth-code-card.status-used {
+    border-left: 4px solid #6c757d;
+    opacity: 0.8;
+}
+
+.auth-code-card.status-expired {
+    border-left: 4px solid #dc3545;
+    opacity: 0.7;
+}
+
+.auth-code-card.status-cancelled {
+    border-left: 4px solid #ffc107;
+    opacity: 0.7;
+}
+
+.auth-code-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+}
+
+.auth-code-value {
+    font-family: 'Courier New', monospace;
+    font-size: 1.25rem;
+    font-weight: bold;
+    letter-spacing: 2px;
+    color: #333;
+    background: #f8f9fa;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.copy-code-btn {
+    background: none;
+    border: none;
+    color: #6c757d;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.copy-code-btn:hover {
+    color: #007bff;
+    background: #e9ecef;
+}
+
+.auth-code-status {
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.auth-code-status.active {
+    background: #d4edda;
+    color: #155724;
+}
+
+.auth-code-status.used {
+    background: #e2e3e5;
+    color: #383d41;
+}
+
+.auth-code-status.expired {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.auth-code-status.cancelled {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.auth-code-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.auth-code-detail {
+    display: flex;
+    flex-direction: column;
+}
+
+.auth-code-detail-label {
+    font-size: 0.75rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.auth-code-detail-value {
+    font-size: 0.9rem;
+    color: #333;
+    font-weight: 500;
+}
+
+.auth-code-expiry {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 4px;
+    padding: 0.5rem;
+    margin-bottom: 1rem;
+    font-size: 0.85rem;
+}
+
+.auth-code-expiry.expired {
+    background: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+}
+
+.auth-code-expiry.warning {
+    background: #fff3cd;
+    border-color: #ffeaa7;
+    color: #856404;
+}
+
+.auth-code-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.auth-code-actions .btn {
+    font-size: 0.8rem;
+    padding: 0.4rem 0.8rem;
+}
+
+.time-remaining {
+    font-weight: 600;
+    color: #28a745;
+}
+
+.time-remaining.warning {
+    color: #ffc107;
+}
+
+.time-remaining.expired {
+    color: #dc3545;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #6c757d;
+}
+
+.empty-state i {
+    color: #dee2e6;
+    margin-bottom: 1rem;
+}
+
+.empty-state h4 {
+    margin-bottom: 0.5rem;
+    color: #495057;
+}
+
+.empty-state p {
+    margin-bottom: 1.5rem;
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Authorization Codes in Requests Table */
+.auth-code-cell {
+    min-width: 150px;
+    font-size: 0.85rem;
+}
+
+.auth-code-value {
+    font-family: 'Courier New', monospace;
+    font-weight: bold;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-bottom: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    background: #f8f9fa;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+}
+
+.auth-code-value.clickable {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.auth-code-value.clickable:hover {
+    background: #e9ecef;
+    border-color: #007bff;
+    color: #007bff;
+}
+
+.auth-code-value .code-text {
+    font-size: 0.8rem;
+    color: #333;
+}
+
+.auth-code-value .copy-icon {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    font-size: 0.7rem;
+    color: #6c757d;
+}
+
+.auth-code-value.clickable:hover .copy-icon {
+    opacity: 1;
+}
+
+.auth-code-value i.fas.fa-key {
+    color: #6c757d;
+    font-size: 0.7rem;
+}
+
+.no-auth-code {
+    color: #6c757d;
+    font-style: italic;
+    font-size: 0.85rem;
+}
+
+/* Authorization Status Badges */
+.auth-status {
+    display: inline-block;
+    padding: 0.15rem 0.4rem;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-bottom: 0.25rem;
+}
+
+.auth-status.active {
+    background: #d4edda;
+    color: #155724;
+}
+
+.auth-status.used {
+    background: #e2e3e5;
+    color: #383d41;
+}
+
+.auth-status.expired {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.auth-status.cancelled {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.auth-status.unknown {
+    background: #f8f9fa;
+    color: #6c757d;
+}
+
+/* Time Information */
+.time-remaining {
+    display: block;
+    color: #28a745;
+    font-weight: 600;
+    font-size: 0.7rem;
+}
+
+.used-date {
+    display: block;
+    color: #6c757d;
+    font-size: 0.7rem;
+}
+
+/* Admin Actions */
+.auth-admin-actions {
+    display: flex;
+    gap: 0.25rem;
+    margin-top: 0.25rem;
+}
+
+.auth-admin-actions .btn {
+    padding: 0.15rem 0.3rem;
+    font-size: 0.7rem;
+    line-height: 1;
+}
+
+.btn-xs {
+    padding: 0.15rem 0.3rem;
+    font-size: 0.7rem;
+    line-height: 1.2;
+}
+
+/* Responsive Design for Authorization Codes */
+@media (max-width: 768px) {
+    .auth-code-cell {
+        min-width: 120px;
+    }
+
+    .auth-code-value {
+        padding: 0.2rem 0.4rem;
+        gap: 0.2rem;
+    }
+
+    .auth-code-value .code-text {
+        font-size: 0.75rem;
+        letter-spacing: 0.5px;
+    }
+
+    .auth-admin-actions {
+        flex-direction: column;
+        gap: 0.15rem;
+    }
+
+    .auth-admin-actions .btn {
+        padding: 0.1rem 0.25rem;
+        font-size: 0.65rem;
+    }
+}
+
+/* Required/Optional Indicators */
+.required-indicator {
+    color: #dc3545;
+    font-weight: bold;
+    margin-left: 0.25rem;
+}
+
+.optional-indicator {
+    color: #6c757d;
+    font-weight: normal;
+    margin-left: 0.25rem;
+}
+
+/* Role-based visibility */
+.student-only {
+    display: none;
+}
+
+.admin-staff-only {
+    display: inline;
+}
+
+/* When user is student */
+body.user-student .student-only {
+    display: inline;
+}
+
+body.user-student .admin-staff-only {
+    display: none;
+}
+
+/* When user is admin/staff */
+body.user-admin .student-only,
+body.user-staff .student-only {
+    display: none;
+}
+
+body.user-admin .admin-staff-only,
+body.user-staff .admin-staff-only {
+    display: inline;
+}
+
+/* Enhanced form help styling */
+.form-help i.fas {
+    margin-right: 0.25rem;
+    color: #ffc107;
+}
+
+.form-help a {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.form-help a:hover {
+    text-decoration: underline;
+}
+
+/* Header Actions */
+.header-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.header-actions .btn {
+    white-space: nowrap;
+}
+
+/* Clear History Button Styling */
+#clearHistoryBtn {
+    background: #ffc107;
+    border-color: #ffc107;
+    color: #212529;
+    font-weight: 600;
+}
+
+#clearHistoryBtn:hover {
+    background: #e0a800;
+    border-color: #d39e00;
+    color: #212529;
+}
+
+#clearHistoryBtn:focus {
+    box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.5);
+}
+
+/* Transaction History Modal */
+.transaction-stats {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem;
+    margin: 1rem 0;
+}
+
+.transaction-stats h4 {
+    margin-bottom: 0.75rem;
+    color: #495057;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.stat-item {
+    background: white;
+    padding: 0.75rem;
+    border-radius: 6px;
+    border: 1px solid #dee2e6;
+    text-align: center;
+}
+
+.stat-item .stat-number {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #007bff;
+    display: block;
+}
+
+.stat-item .stat-label {
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin-top: 0.25rem;
+}
+
+.warning-section {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 6px;
+    padding: 1rem;
+    margin: 1rem 0;
+}
+
+.warning-section h5 {
+    color: #856404;
+    margin-bottom: 0.5rem;
+}
+
+.warning-section ul {
+    margin: 0.5rem 0;
+    padding-left: 1.5rem;
+}
+
+.warning-section li {
+    color: #856404;
+    margin-bottom: 0.25rem;
+}
+
+.confirmation-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+}
+
+.danger-btn {
+    background: #dc3545;
+    border-color: #dc3545;
+    color: white;
+}
+
+.danger-btn:hover {
+    background: #c82333;
+    border-color: #bd2130;
+}
+
+/* Responsive Design for Header Actions */
+@media (max-width: 768px) {
+    .header-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+        width: 100%;
+    }
+
+    .header-actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .section-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+}
+
+/* Section Info Styling */
+.section-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #f8f9fa;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    border-left: 4px solid #007bff;
+    margin-top: 1rem;
+    font-size: 0.9rem;
+    color: #495057;
+}
+
+.section-info i {
+    color: #007bff;
+    font-size: 1rem;
+}
+
+.section-info a {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.section-info a:hover {
+    text-decoration: underline;
+}
+
+/* Checkout Tabs Styling */
+.checkout-tabs {
+    margin-bottom: 2rem;
+}
+
+.checkout-tabs .tab-buttons {
+    display: flex;
+    border-bottom: 2px solid #e9ecef;
+    margin-bottom: 1.5rem;
+}
+
+.checkout-tabs .tab-btn {
+    background: none;
+    border: none;
+    padding: 1rem 1.5rem;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: #6c757d;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.checkout-tabs .tab-btn:hover {
+    color: #007bff;
+    background: #f8f9fa;
+}
+
+.checkout-tabs .tab-btn.active {
+    color: #007bff;
+    border-bottom-color: #007bff;
+    background: #f8f9fa;
+}
+
+.checkout-tabs .tab-btn i {
+    font-size: 1rem;
+}
+
+/* Request Form Container */
+.request-form-container,
+.checkin-form-container {
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+.request-form-container h3,
+.checkin-form-container h3 {
+    margin-bottom: 0.5rem;
+    color: #495057;
+}
+
+.form-description {
+    color: #6c757d;
+    margin-bottom: 1.5rem;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+/* Enhanced Form Actions */
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e9ecef;
+}
+
+.form-actions .btn {
+    min-width: 120px;
+}
+
+/* Tab Content Styling */
+.tab-content {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive Design for Checkout Tabs */
+@media (max-width: 768px) {
+    .checkout-tabs .tab-buttons {
+        flex-direction: column;
+    }
+
+    .checkout-tabs .tab-btn {
+        text-align: center;
+        border-bottom: 1px solid #e9ecef;
+        border-right: none;
+    }
+
+    .checkout-tabs .tab-btn.active {
+        border-bottom-color: #e9ecef;
+        border-left: 3px solid #007bff;
+    }
+
+    .request-form-container,
+    .checkin-form-container {
+        padding: 1.5rem;
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+
+    .form-actions .btn {
+        width: 100%;
+    }
 }

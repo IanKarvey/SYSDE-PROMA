@@ -53,6 +53,10 @@ document.addEventListener('DOMContentLoaded', function () {
             $('.role').textContent = user.role.charAt(0).toUpperCase() + user.role.slice(1);
             $('.user-profile').style.display = '';
 
+            // Add role-based body class for CSS styling
+            document.body.className = document.body.className.replace(/user-\w+/g, '');
+            document.body.classList.add(`user-${user.role}`);
+
             // Enhanced role-based UI management
             if (user.role === 'student') {
                 // STUDENT ROLE CONFIGURATION
@@ -89,14 +93,10 @@ document.addEventListener('DOMContentLoaded', function () {
             } else if (user.role === 'admin' || user.role === 'staff') {
                 // ADMIN/STAFF ROLE CONFIGURATION
 
-                // Show all sections except check-in/out for admin/staff
+                // Show all sections including check-in/out for admin/staff
                 $all('.nav-links li').forEach(li => {
-                    const section = li.getAttribute('data-section');
-                    if (section === 'checkinout') {
-                        li.style.display = 'none'; // Hide check-in/out from admin navigation
-                    } else {
-                        li.style.display = '';
-                    }
+                    // Show all sections for admin/staff (including checkinout)
+                    li.style.display = '';
                 });
 
                 // Show "Add Item" button for admin/staff
@@ -119,10 +119,27 @@ document.addEventListener('DOMContentLoaded', function () {
                 $all('.nav-links li').forEach(li => li.style.display = '');
                 $all('.admin-only').forEach(el => el.style.display = 'none');
             }
+
+            // Update authorization code field requirements
+            updateAuthCodeRequirements(user.role);
         } else {
             $('.username').textContent = '';
             $('.role').textContent = '';
             $('.user-profile').style.display = 'none';
+        }
+    }
+
+    // Update authorization code field requirements based on user role
+    function updateAuthCodeRequirements(role) {
+        const authCodeInput = $('#authorizationCode');
+        if (authCodeInput) {
+            if (role === 'student') {
+                authCodeInput.required = true;
+                authCodeInput.placeholder = 'Required: Enter 8-character code';
+            } else {
+                authCodeInput.required = false;
+                authCodeInput.placeholder = 'Optional: Enter 8-character code';
+            }
         }
     }
 
@@ -572,6 +589,155 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    // Create authorization code display for requests table
+    function createAuthCodeDisplay(req) {
+        if (!req.authorization_code) {
+            return '<span class="no-auth-code">-</span>';
+        }
+
+        const statusClass = req.code_status ? req.code_status.toLowerCase() : 'unknown';
+        const isExpired = req.code_expired;
+        const timeRemaining = req.time_remaining;
+
+        let statusIndicator = '';
+        let timeInfo = '';
+
+        // Create status indicator
+        switch (req.code_status) {
+            case 'active':
+                statusIndicator = isExpired ?
+                    '<span class="auth-status expired">Expired</span>' :
+                    '<span class="auth-status active">Active</span>';
+                if (timeRemaining && !isExpired) {
+                    timeInfo = `<small class="time-remaining">${timeRemaining} left</small>`;
+                }
+                break;
+            case 'used':
+                statusIndicator = '<span class="auth-status used">Used</span>';
+                if (req.code_used_at) {
+                    timeInfo = `<small class="used-date">Used: ${formatDate(req.code_used_at)}</small>`;
+                }
+                break;
+            case 'expired':
+                statusIndicator = '<span class="auth-status expired">Expired</span>';
+                break;
+            case 'cancelled':
+                statusIndicator = '<span class="auth-status cancelled">Cancelled</span>';
+                break;
+            default:
+                statusIndicator = '<span class="auth-status unknown">Unknown</span>';
+        }
+
+        // For students: show code with copy functionality if active
+        if (currentUser && currentUser.role === 'student') {
+            if (req.code_status === 'active' && !isExpired) {
+                return `
+                    <div class="auth-code-cell">
+                        <div class="auth-code-value clickable" onclick="copyAuthCode('${req.authorization_code}')" title="Click to copy">
+                            <i class="fas fa-key"></i>
+                            <span class="code-text">${req.authorization_code}</span>
+                            <i class="fas fa-copy copy-icon"></i>
+                        </div>
+                        ${statusIndicator}
+                        ${timeInfo}
+                    </div>
+                `;
+            } else {
+                return `
+                    <div class="auth-code-cell">
+                        <div class="auth-code-value">
+                            <i class="fas fa-key"></i>
+                            <span class="code-text">${req.authorization_code}</span>
+                        </div>
+                        ${statusIndicator}
+                        ${timeInfo}
+                    </div>
+                `;
+            }
+        }
+        // For admin/staff: show code with status and admin actions
+        else if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'staff')) {
+            let adminActions = '';
+            if (req.code_status === 'active' && !isExpired) {
+                adminActions = `
+                    <div class="auth-admin-actions">
+                        <button class="btn btn-xs btn-outline" onclick="copyAuthCode('${req.authorization_code}')" title="Copy code">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        <button class="btn btn-xs btn-warning" onclick="cancelAuthCode('${req.authorization_code}')" title="Cancel code">
+                            <i class="fas fa-ban"></i>
+                        </button>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="auth-code-cell admin">
+                    <div class="auth-code-value">
+                        <i class="fas fa-key"></i>
+                        <span class="code-text">${req.authorization_code}</span>
+                    </div>
+                    ${statusIndicator}
+                    ${timeInfo}
+                    ${adminActions}
+                </div>
+            `;
+        }
+
+        return '<span class="no-auth-code">-</span>';
+    }
+
+    // Copy authorization code from table
+    window.copyAuthCode = async function(code) {
+        try {
+            await navigator.clipboard.writeText(code);
+            showToast(`Authorization code ${code} copied to clipboard`, 'success');
+        } catch (error) {
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = code;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            showToast(`Authorization code ${code} copied to clipboard`, 'success');
+        }
+    };
+
+    // Cancel authorization code (admin only)
+    window.cancelAuthCode = async function(code) {
+        if (!confirm(`Are you sure you want to cancel authorization code ${code}?`)) {
+            return;
+        }
+
+        try {
+            const res = await fetch('php/authorization.php', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    action: 'cancel_code',
+                    code: code,
+                    reason: 'Cancelled by admin from requests table'
+                }),
+                credentials: 'include'
+            });
+
+            const data = await res.json();
+
+            if (data.success) {
+                showToast(`Authorization code ${code} cancelled successfully`, 'success');
+                fetchRequests(); // Refresh the table
+            } else {
+                showToast(data.message || 'Failed to cancel authorization code', 'danger');
+            }
+        } catch (error) {
+            console.error('Error cancelling authorization code:', error);
+            showToast('Failed to cancel authorization code', 'danger');
+        }
+    };
+
     function renderRequestsTable(requests) {
         const tbody = $('#requests .requests-table tbody');
         tbody.innerHTML = '';
@@ -605,6 +771,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 actionButtons = `<button class="btn btn-danger btn-sm cancel-request" data-id="${req.id}">Cancel</button>`;
             }
 
+            // Create authorization code display
+            const authCodeDisplay = createAuthCodeDisplay(req);
+
             tr.innerHTML = `
                 <td>${req.id}</td>
                 <td>${req.item_name}</td>
@@ -613,6 +782,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <td>${req.date_requested}</td>
                 <td>${req.needed_by}</td>
                 <td>${statusBadge}</td>
+                <td>${authCodeDisplay}</td>
                 <td>${actionButtons}</td>
             `;
             tbody.appendChild(tr);
@@ -695,7 +865,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 closeModal('#requestDetailsModal');
 
                 // Refresh dashboard statistics
-                updateDashboardStats();
+                triggerDashboardUpdate();
             } else {
                 showToast(data.message || `Failed to ${status} request`, 'danger');
             }
@@ -772,17 +942,721 @@ document.addEventListener('DOMContentLoaded', function () {
         const data = await res.json();
         if (data.success) renderCheckoutsTable(data.data);
     }
+
+    // Initialize check-in/out forms based on user role
+    function initializeCheckInOutForms() {
+        if (!currentUser) return;
+
+        const checkoutUserField = $('#checkoutUser');
+        const checkoutUserGroup = checkoutUserField?.closest('.form-group');
+
+        if (currentUser.role === 'student') {
+            // For students: hide user selection field and auto-select themselves
+            if (checkoutUserGroup) {
+                checkoutUserGroup.style.display = 'none';
+            }
+            if (checkoutUserField) {
+                checkoutUserField.value = currentUser.id;
+            }
+
+            // Update form labels for student self-service
+            const checkoutTitle = $('#checkinout .checkinout-form h3');
+            if (checkoutTitle && checkoutTitle.textContent === 'Check Out Equipment') {
+                checkoutTitle.textContent = 'Check Out Equipment (Self-Service)';
+            }
+
+            const checkinTitle = $('#checkinout .checkinout-form:nth-child(2) h3');
+            if (checkinTitle && checkinTitle.textContent === 'Check In Equipment') {
+                checkinTitle.textContent = 'Check In Equipment (Self-Service)';
+            }
+
+        } else if (currentUser.role === 'admin' || currentUser.role === 'staff') {
+            // For admin/staff: show user selection field for managing others' checkouts
+            if (checkoutUserGroup) {
+                checkoutUserGroup.style.display = '';
+            }
+
+            // Populate user dropdown for admin/staff
+            populateUserDropdown();
+        }
+
+        // Populate available items dropdown for all users
+        populateAvailableItemsDropdown();
+
+        // Populate check-in items dropdown
+        populateCheckinItemsDropdown();
+    }
+
+    // Populate available items dropdown from inventory
+    async function populateAvailableItemsDropdown() {
+        try {
+            const res = await fetch('php/checkout.php?action=available_items', {
+                credentials: 'include'
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                const checkoutItemField = $('#checkoutItem');
+                if (checkoutItemField) {
+                    checkoutItemField.innerHTML = '<option value="">Select an item</option>';
+                    data.data.forEach(item => {
+                        const option = document.createElement('option');
+                        option.value = item.id;
+                        option.textContent = `${item.name} - ${item.category} - ${item.location} (${item.quantity} available)`;
+                        option.dataset.quantity = item.quantity;
+                        option.dataset.location = item.location;
+                        checkoutItemField.appendChild(option);
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Error populating available items:', error);
+        }
+    }
+
+    // Populate check-in items dropdown with user's checked out items
+    async function populateCheckinItemsDropdown() {
+        try {
+            const res = await fetch('php/checkout.php?action=user_checkouts', {
+                credentials: 'include'
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                const checkinItemField = $('#checkinItem');
+                if (checkinItemField) {
+                    checkinItemField.innerHTML = '<option value="">Select an item to check in</option>';
+                    data.data.forEach(checkout => {
+                        const option = document.createElement('option');
+                        option.value = checkout.id;
+                        option.textContent = `${checkout.item_name} - ${checkout.category} - ${checkout.location} (Due: ${checkout.due_date})`;
+                        option.dataset.itemId = checkout.item_id;
+                        option.dataset.dueDate = checkout.due_date;
+                        checkinItemField.appendChild(option);
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Error populating check-in items:', error);
+        }
+    }
+
+    // Populate user dropdown for admin/staff
+    async function populateUserDropdown() {
+        try {
+            const res = await fetch('php/users.php', { credentials: 'include' });
+            const data = await res.json();
+
+            if (data.success) {
+                const checkoutUserField = $('#checkoutUser');
+                if (checkoutUserField) {
+                    checkoutUserField.innerHTML = '<option value="">Select a user</option>';
+                    data.data.forEach(user => {
+                        const option = document.createElement('option');
+                        option.value = user.id;
+                        option.textContent = `${user.first_name} ${user.last_name} (${user.role})`;
+                        checkoutUserField.appendChild(option);
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Error populating user dropdown:', error);
+        }
+    }
+
+    // Process checkout form submission
+    async function processCheckoutForm() {
+        try {
+            const itemId = $('#checkoutItem').value;
+            const userId = $('#checkoutUser').value || currentUser.id;
+            const dueDate = $('#checkoutDate').value;
+            const notes = $('#checkoutNotes').value;
+            const authCode = $('#authorizationCode').value.trim().toUpperCase();
+
+            if (!itemId || !dueDate) {
+                showToast('Please select an item and due date', 'danger');
+                return;
+            }
+
+            // MANDATORY AUTHORIZATION CODE CHECK FOR STUDENTS
+            if (currentUser && currentUser.role === 'student') {
+                if (!authCode) {
+                    showToast('Authorization code is required for student checkouts. Please enter a valid authorization code from an approved request.', 'danger');
+                    $('#authorizationCode').focus();
+                    return;
+                }
+            }
+
+            // If authorization code is provided, use the authorization API
+            if (authCode) {
+                const authData = {
+                    action: 'use_code',
+                    code: authCode,
+                    notes: notes
+                };
+
+                const res = await fetch('php/authorization.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(authData),
+                    credentials: 'include'
+                });
+
+                const data = await res.json();
+
+                if (data.success) {
+                    showToast('Equipment checked out successfully using authorization code', 'success');
+
+                    // Clear form
+                    $('#checkoutItem').value = '';
+                    $('#checkoutDate').value = '';
+                    $('#checkoutNotes').value = '';
+                    $('#authorizationCode').value = '';
+                    clearAuthCodeValidation();
+
+                    // Refresh data
+                    await Promise.all([
+                        fetchCheckouts(),
+                        populateAvailableItemsDropdown(),
+                        populateCheckinItemsDropdown()
+                    ]);
+
+                    // Trigger dashboard update
+                    triggerDashboardUpdate();
+                } else {
+                    showToast(data.message || 'Authorization code checkout failed', 'danger');
+                }
+            } else {
+                // Regular checkout without authorization code
+                const checkoutData = {
+                    action: 'checkout',
+                    item_id: itemId,
+                    user_id: userId,
+                    due_date: dueDate,
+                    notes: notes
+                };
+
+                const res = await fetch('php/checkout.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(checkoutData),
+                    credentials: 'include'
+                });
+
+                const data = await res.json();
+
+                if (data.success) {
+                    showToast(data.message, 'success');
+
+                    // Clear form
+                    $('#checkoutItem').value = '';
+                    $('#checkoutDate').value = '';
+                    $('#checkoutNotes').value = '';
+
+                    // Refresh data
+                    await Promise.all([
+                        fetchCheckouts(),
+                        populateAvailableItemsDropdown(),
+                        populateCheckinItemsDropdown()
+                    ]);
+
+                    // Trigger dashboard update
+                    triggerDashboardUpdate();
+                } else {
+                    showToast(data.message || 'Checkout failed', 'danger');
+                }
+            }
+        } catch (error) {
+            console.error('Checkout error:', error);
+            showToast('Failed to process checkout', 'danger');
+        }
+    }
+
+    // Process check-in form submission
+    async function processCheckinForm() {
+        try {
+            const checkoutId = $('#checkinItem').value;
+            const condition = $('#checkinCondition').value;
+            const notes = $('#checkinNotes').value;
+
+            if (!checkoutId) {
+                showToast('Please select an item to check in', 'danger');
+                return;
+            }
+
+            const checkinData = {
+                action: 'checkin',
+                checkout_id: checkoutId,
+                condition: condition,
+                notes: notes
+            };
+
+            const res = await fetch('php/checkout.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(checkinData),
+                credentials: 'include'
+            });
+
+            const data = await res.json();
+
+            if (data.success) {
+                showToast(data.message, 'success');
+
+                // Clear form
+                $('#checkinItem').value = '';
+                $('#checkinCondition').value = 'excellent';
+                $('#checkinNotes').value = '';
+
+                // Refresh data
+                await Promise.all([
+                    fetchCheckouts(),
+                    populateAvailableItemsDropdown(),
+                    populateCheckinItemsDropdown()
+                ]);
+
+                // Trigger dashboard update
+                triggerDashboardUpdate();
+            } else {
+                showToast(data.message || 'Check-in failed', 'danger');
+            }
+        } catch (error) {
+            console.error('Check-in error:', error);
+            showToast('Failed to process check-in', 'danger');
+        }
+    }
+
+    // Global function for check-in button in table
+    window.checkInItem = async function(checkoutId) {
+        try {
+            const checkinData = {
+                action: 'checkin',
+                checkout_id: checkoutId,
+                condition: 'good',
+                notes: 'Checked in via table action'
+            };
+
+            const res = await fetch('php/checkout.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(checkinData),
+                credentials: 'include'
+            });
+
+            const data = await res.json();
+
+            if (data.success) {
+                showToast(data.message, 'success');
+
+                // Refresh data
+                await Promise.all([
+                    fetchCheckouts(),
+                    populateAvailableItemsDropdown(),
+                    populateCheckinItemsDropdown()
+                ]);
+
+                // Trigger dashboard update
+                triggerDashboardUpdate();
+            } else {
+                showToast(data.message || 'Check-in failed', 'danger');
+            }
+        } catch (error) {
+            console.error('Check-in error:', error);
+            showToast('Failed to process check-in', 'danger');
+        }
+    };
+
+    // Authorization code validation
+    async function validateAuthorizationCode() {
+        try {
+            const code = $('#authorizationCode').value.trim().toUpperCase();
+
+            if (!code) {
+                showToast('Please enter an authorization code', 'warning');
+                return;
+            }
+
+            // Show loading state
+            const validateBtn = $('#validateCodeBtn');
+            const originalText = validateBtn.textContent;
+            validateBtn.textContent = 'Validating...';
+            validateBtn.disabled = true;
+
+            const res = await fetch(`php/authorization.php?action=validate_code&code=${encodeURIComponent(code)}`, {
+                credentials: 'include'
+            });
+
+            const data = await res.json();
+
+            if (data.success) {
+                // Auto-fill form with validated code data
+                const codeData = data.data;
+
+                // Set item
+                const itemSelect = $('#checkoutItem');
+                if (itemSelect) {
+                    // Find and select the item
+                    for (let option of itemSelect.options) {
+                        if (option.value == codeData.item_id) {
+                            option.selected = true;
+                            break;
+                        }
+                    }
+                }
+
+                // Set user (for admin/staff)
+                const userSelect = $('#checkoutUser');
+                if (userSelect && userSelect.style.display !== 'none') {
+                    for (let option of userSelect.options) {
+                        if (option.value == codeData.user_id) {
+                            option.selected = true;
+                            break;
+                        }
+                    }
+                } else if (userSelect) {
+                    userSelect.value = codeData.user_id;
+                }
+
+                // Set due date
+                const dateField = $('#checkoutDate');
+                if (dateField && codeData.due_date) {
+                    dateField.value = codeData.due_date;
+                }
+
+                // Add notes about authorization
+                const notesField = $('#checkoutNotes');
+                if (notesField) {
+                    const authNote = `Authorization Code: ${code} (Request #${codeData.request_id})`;
+                    notesField.value = notesField.value ? notesField.value + '\n' + authNote : authNote;
+                }
+
+                // Show success state
+                showAuthCodeValidation(true, `Valid code for ${codeData.item_name} - expires ${new Date(codeData.expires_at).toLocaleString()}`);
+                showToast(`Authorization code validated for ${codeData.item_name}`, 'success');
+
+            } else {
+                showAuthCodeValidation(false, data.message);
+                showToast(data.message, 'danger');
+            }
+
+        } catch (error) {
+            console.error('Authorization code validation error:', error);
+            showAuthCodeValidation(false, 'Failed to validate authorization code');
+            showToast('Failed to validate authorization code', 'danger');
+        } finally {
+            // Reset button state
+            const validateBtn = $('#validateCodeBtn');
+            validateBtn.textContent = 'Validate';
+            validateBtn.disabled = false;
+        }
+    }
+
+    // Show authorization code validation state
+    function showAuthCodeValidation(isValid, message) {
+        const authSection = $('.authorization-code-section');
+        const helpText = authSection?.querySelector('.form-help');
+
+        if (helpText) {
+            helpText.textContent = message;
+            helpText.className = isValid ? 'form-help success' : 'form-help error';
+        }
+
+        const codeInput = $('#authorizationCode');
+        if (codeInput) {
+            codeInput.className = isValid ? 'valid' : 'invalid';
+        }
+    }
+
+    // Clear authorization code validation state
+    function clearAuthCodeValidation() {
+        const authSection = $('.authorization-code-section');
+        const helpText = authSection?.querySelector('.form-help');
+
+        if (helpText) {
+            helpText.textContent = 'Enter your authorization code from an approved request to auto-fill the form';
+            helpText.className = 'form-help';
+        }
+
+        const codeInput = $('#authorizationCode');
+        if (codeInput) {
+            codeInput.className = '';
+        }
+    }
+
+    // Show authorization code validation state
+    function showAuthCodeValidation(isValid, message) {
+        const authSection = $('.authorization-code-section');
+        const helpText = authSection?.querySelector('.form-help');
+
+        if (helpText) {
+            helpText.textContent = message;
+            helpText.className = isValid ? 'form-help success' : 'form-help error';
+        }
+
+        const codeInput = $('#authorizationCode');
+        if (codeInput) {
+            codeInput.className = isValid ? 'valid' : 'invalid';
+        }
+    }
+
+    // Fetch user's authorization codes
+    async function fetchUserAuthorizationCodes() {
+        try {
+            const res = await fetch('php/authorization.php?action=my_codes', {
+                credentials: 'include'
+            });
+
+            const data = await res.json();
+
+            if (data.success) {
+                displayAuthorizationCodes(data.data);
+                updateAuthCodesTab(data.count);
+            } else {
+                console.error('Failed to fetch authorization codes:', data.message);
+                displayAuthorizationCodes([]);
+                updateAuthCodesTab(0);
+            }
+        } catch (error) {
+            console.error('Error fetching authorization codes:', error);
+            displayAuthorizationCodes([]);
+            updateAuthCodesTab(0);
+        }
+    }
+
+    // Display authorization codes in the tab
+    function displayAuthorizationCodes(codes) {
+        const authCodesList = $('#authCodesList');
+        const noAuthCodes = $('#noAuthCodes');
+
+        if (!authCodesList) return;
+
+        if (codes.length === 0) {
+            authCodesList.style.display = 'none';
+            if (noAuthCodes) noAuthCodes.style.display = 'block';
+            return;
+        }
+
+        authCodesList.style.display = 'grid';
+        if (noAuthCodes) noAuthCodes.style.display = 'none';
+
+        authCodesList.innerHTML = codes.map(code => createAuthCodeCard(code)).join('');
+
+        // Add event listeners for copy buttons and actions
+        authCodesList.querySelectorAll('.copy-code-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const codeValue = e.target.closest('.auth-code-card').dataset.code;
+                copyToClipboard(codeValue);
+            });
+        });
+
+        authCodesList.querySelectorAll('.use-code-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const codeValue = e.target.closest('.auth-code-card').dataset.code;
+                useAuthorizationCodeFromTab(codeValue);
+            });
+        });
+    }
+
+    // Create authorization code card HTML
+    function createAuthCodeCard(code) {
+        const now = new Date();
+        const expiresAt = new Date(code.expires_at);
+        const isExpired = expiresAt < now;
+        const timeRemaining = getTimeRemaining(expiresAt);
+        const statusClass = code.status.toLowerCase();
+
+        return `
+            <div class="auth-code-card status-${statusClass}" data-code="${code.code}">
+                <div class="auth-code-header">
+                    <div class="auth-code-value">
+                        <span>${code.code}</span>
+                        ${code.status === 'active' ? `
+                            <button class="copy-code-btn" title="Copy code">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                    <span class="auth-code-status ${statusClass}">${code.status}</span>
+                </div>
+
+                <div class="auth-code-details">
+                    <div class="auth-code-detail">
+                        <span class="auth-code-detail-label">Equipment</span>
+                        <span class="auth-code-detail-value">${code.item_name}</span>
+                    </div>
+                    <div class="auth-code-detail">
+                        <span class="auth-code-detail-label">Request ID</span>
+                        <span class="auth-code-detail-value">#${code.request_id}</span>
+                    </div>
+                    <div class="auth-code-detail">
+                        <span class="auth-code-detail-label">Quantity</span>
+                        <span class="auth-code-detail-value">${code.request_quantity} unit(s)</span>
+                    </div>
+                    <div class="auth-code-detail">
+                        <span class="auth-code-detail-label">Generated</span>
+                        <span class="auth-code-detail-value">${formatDate(code.created_at)}</span>
+                    </div>
+                </div>
+
+                ${code.status === 'active' ? `
+                    <div class="auth-code-expiry ${isExpired ? 'expired' : (timeRemaining.hours < 6 ? 'warning' : '')}">
+                        <i class="fas fa-clock"></i>
+                        ${isExpired ? 'Expired' : `Expires in ${timeRemaining.text}`}
+                        (${formatDateTime(code.expires_at)})
+                    </div>
+                ` : ''}
+
+                ${code.status === 'used' && code.used_at ? `
+                    <div class="auth-code-detail">
+                        <span class="auth-code-detail-label">Used On</span>
+                        <span class="auth-code-detail-value">${formatDateTime(code.used_at)}</span>
+                    </div>
+                ` : ''}
+
+                <div class="auth-code-actions">
+                    ${code.status === 'active' && !isExpired ? `
+                        <button class="btn btn-primary btn-sm use-code-btn">
+                            <i class="fas fa-arrow-right"></i> Use for Checkout
+                        </button>
+                    ` : ''}
+                    ${code.status === 'active' ? `
+                        <button class="btn btn-outline btn-sm copy-code-btn">
+                            <i class="fas fa-copy"></i> Copy Code
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    // Get time remaining until expiry
+    function getTimeRemaining(expiresAt) {
+        const now = new Date();
+        const diff = expiresAt - now;
+
+        if (diff <= 0) {
+            return { text: 'Expired', hours: 0, minutes: 0, seconds: 0 };
+        }
+
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+        if (hours > 0) {
+            return {
+                text: `${hours}h ${minutes}m ${seconds}s`,
+                hours: hours,
+                minutes: minutes,
+                seconds: seconds
+            };
+        } else if (minutes > 0) {
+            return {
+                text: `${minutes}m ${seconds}s`,
+                hours: 0,
+                minutes: minutes,
+                seconds: seconds
+            };
+        } else {
+            return {
+                text: `${seconds}s`,
+                hours: 0,
+                minutes: 0,
+                seconds: seconds
+            };
+        }
+    }
+
+    // Copy code to clipboard
+    async function copyToClipboard(text) {
+        try {
+            await navigator.clipboard.writeText(text);
+            showToast(`Authorization code ${text} copied to clipboard`, 'success');
+        } catch (error) {
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            showToast(`Authorization code ${text} copied to clipboard`, 'success');
+        }
+    }
+
+    // Use authorization code from tab (navigate to checkout)
+    function useAuthorizationCodeFromTab(code) {
+        // Navigate to checkout section
+        showSection('#checkinout');
+
+        // Fill in the authorization code
+        const authCodeInput = $('#authorizationCode');
+        if (authCodeInput) {
+            authCodeInput.value = code;
+            // Trigger validation
+            setTimeout(() => {
+                validateAuthorizationCode();
+            }, 500);
+        }
+
+        showToast(`Navigated to checkout with code ${code}`, 'info');
+    }
+
+    // Update authorization codes tab visibility and badge
+    function updateAuthCodesTab(count) {
+        const authCodesTab = $('#authCodesTab');
+        const authCodesBadge = $('#authCodesBadge');
+
+        if (authCodesTab && currentUser && currentUser.role === 'student') {
+            if (count > 0) {
+                authCodesTab.style.display = 'flex';
+                if (authCodesBadge) {
+                    authCodesBadge.textContent = count;
+                }
+            } else {
+                authCodesTab.style.display = 'none';
+            }
+        }
+    }
+
     function renderCheckoutsTable(items) {
         const tbody = $('#checkinout .checkedout-table tbody');
         tbody.innerHTML = '';
-        items.forEach(item => {
+
+        // Filter items based on user role
+        let filteredItems = items;
+        if (currentUser && currentUser.role === 'student') {
+            // Students see only their own checkouts
+            filteredItems = items.filter(item => item.user_id === currentUser.id);
+        }
+        // Admin/staff see all checkouts (no filtering)
+
+        if (filteredItems.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #666; font-style: italic;">No checkouts found</td></tr>';
+            return;
+        }
+
+        filteredItems.forEach(item => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${item.item_name}</td>
                 <td>${item.first_name} ${item.last_name}</td>
                 <td>${item.date_out}</td>
                 <td>${item.due_date}</td>
-                <td class="status-${item.status}">${item.status}</td>
+                <td><span class="status-${item.status.toLowerCase()}">${item.status}</span></td>
+                <td>
+                    ${item.status === 'checked_out' ?
+                        `<button class="btn btn-sm btn-primary" onclick="checkInItem(${item.id})">Check In</button>` :
+                        '<span class="text-muted">Returned</span>'
+                    }
+                </td>
             `;
             tbody.appendChild(tr);
         });
@@ -901,68 +1775,83 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- Example: Chart.js integration for dashboard ---
 
     // --- Real-Time Dashboard Statistics ---
+    // Enhanced dashboard statistics with real-time data from integrated systems
     async function updateDashboardStats() {
         try {
             // Show loading indicators
-            const statCards = $all('.stat-card .stat-number');
+            const statCards = $all('.stat-card .stat-value');
             statCards.forEach(card => {
-                card.style.opacity = '0.5';
-                card.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                if (card) {
+                    card.style.opacity = '0.5';
+                    card.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                }
             });
 
-            // Fetch real-time statistics
-            const [inventoryRes, requestsRes, issuesRes] = await Promise.all([
-                fetch('php/inventory.php?limit=1000', { credentials: 'include' }),
-                fetch('php/request.php', { credentials: 'include' }),
-                fetch('php/issue.php', { credentials: 'include' })
-            ]);
+            // Fetch comprehensive statistics from dedicated dashboard API
+            const res = await fetch('php/dashboard.php?action=statistics', {
+                credentials: 'include'
+            });
 
-            const [inventoryData, requestsData, issuesData] = await Promise.all([
-                inventoryRes.json(),
-                requestsRes.json(),
-                issuesRes.json()
-            ]);
-
-            // Calculate statistics
-            let totalItems = 0;
-            let availableItems = 0;
-            let pendingRequests = 0;
-            let issuesReported = 0;
-
-            // Inventory statistics
-            if (inventoryData.success) {
-                totalItems = inventoryData.data.length;
-                availableItems = inventoryData.data.filter(item =>
-                    item.status === 'available' && parseInt(item.quantity) > 0
-                ).length;
+            if (!res.ok) {
+                throw new Error(`HTTP ${res.status}: ${res.statusText}`);
             }
 
-            // Request statistics
-            if (requestsData.success) {
-                pendingRequests = requestsData.data.filter(request =>
-                    request.status === 'pending'
-                ).length;
-            }
+            const data = await res.json();
 
-            // Issues statistics
-            if (issuesData.success) {
-                issuesReported = issuesData.data.length;
-            }
+            if (data.success) {
+                const stats = data.data;
+                const userRole = data.user_role;
 
-            // Update dashboard with animation
-            updateStatCard('#stat-total-items', totalItems);
-            updateStatCard('#stat-available-items', availableItems);
-            updateStatCard('#stat-pending-requests', pendingRequests);
-            updateStatCard('#stat-issues-reported', issuesReported);
+                // Update main dashboard cards with real-time quantity-based data
+                updateStatCard('#stat-total-items', stats.total_items || 0);
+                updateStatCard('#stat-available-items', stats.available_items || 0);
+                updateStatCard('#stat-pending-requests', stats.pending_requests || 0);
+                updateStatCard('#stat-issues-reported', stats.issues_reported || 0);
+
+                // Update additional statistics based on role
+                if (userRole === 'student') {
+                    // Student-specific statistics
+                    updateStatCard('#stat-my-requests', stats.my_requests || 0);
+                    updateStatCard('#stat-my-checkouts', stats.my_checkouts || 0);
+                    updateStatCard('#stat-my-issues', stats.my_issues || 0);
+                } else if (userRole === 'admin' || userRole === 'staff') {
+                    // Admin/staff statistics - mix of quantity and count based metrics
+                    updateStatCard('#stat-current-checkouts', stats.current_checkouts || 0);
+                    updateStatCard('#stat-overdue-checkouts', stats.overdue_checkouts || 0);
+                    updateStatCard('#stat-low-stock-items', stats.low_stock_items || 0);
+                    updateStatCard('#stat-critical-issues', stats.critical_issues || 0);
+                    updateStatCard('#stat-total-users', stats.total_users || 0);
+                    updateStatCard('#stat-checkouts-today', stats.checkouts_today || 0);
+                    updateStatCard('#stat-approved-today', stats.approved_today || 0);
+
+                    // Additional quantity-based statistics for admin
+                    updateStatCard('#stat-total-equipment-types', stats.total_equipment_types || 0);
+                    updateStatCard('#stat-available-equipment-types', stats.available_equipment_types || 0);
+                    updateStatCard('#stat-total-units-checked-out', stats.total_units_checked_out || 0);
+                }
+
+                // Update dashboard timestamp
+                const timestampElement = $('#dashboard-last-updated');
+                if (timestampElement) {
+                    timestampElement.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+                }
+
+                console.log('Dashboard statistics updated successfully:', stats);
+            } else {
+                throw new Error(data.message || 'Failed to fetch dashboard statistics');
+            }
 
         } catch (error) {
             console.error('Error updating dashboard stats:', error);
             // Reset loading indicators on error
-            const statCards = $all('.stat-card .stat-number');
+            const statCards = $all('.stat-card .stat-value');
             statCards.forEach(card => {
-                card.style.opacity = '1';
-                card.innerHTML = '0';
+                if (card) {
+                    card.style.opacity = '1';
+                    card.innerHTML = '0';
+                }
             });
+            // Don't show error toast for background updates to avoid spam
         }
     }
 
@@ -982,6 +1871,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 }, 200);
             }, 100);
         }
+    }
+
+    // Trigger dashboard update after key operations
+    function triggerDashboardUpdate() {
+        // Immediate update after user actions
+        setTimeout(() => {
+            updateDashboardStats();
+        }, 500); // Small delay to allow database operations to complete
     }
 
     // Auto-refresh dashboard every 30 seconds
@@ -1183,6 +2080,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Start announcements auto-refresh
                 startAnnouncementAutoRefresh();
 
+                // Initialize check-in/out forms for role-based access
+                initializeCheckInOutForms();
+
                 showSection('#dashboard');
             } else {
                 showToast(data.message || 'Login failed', 'danger');
@@ -1226,6 +2126,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 // Start announcements auto-refresh
                 startAnnouncementAutoRefresh();
+
+                // Initialize check-in/out forms for role-based access
+                initializeCheckInOutForms();
 
                 showSection('#dashboard');
             } else {
@@ -1431,6 +2334,75 @@ document.addEventListener('DOMContentLoaded', function () {
 
         await createAnnouncement(formData);
     });
+
+    // Checkout form event listener
+    $('#checkoutBtn')?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        await processCheckoutForm();
+    });
+
+    // Check-in form event listener
+    $('#checkinBtn')?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        await processCheckinForm();
+    });
+
+    // Authorization code validation event listener
+    $('#validateCodeBtn')?.addEventListener('click', async (e) => {
+        e.preventDefault();
+        await validateAuthorizationCode();
+    });
+
+    // Auto-validate authorization code on input
+    $('#authorizationCode')?.addEventListener('input', (e) => {
+        const code = e.target.value.toUpperCase();
+        e.target.value = code;
+
+        // Clear previous validation state
+        clearAuthCodeValidation();
+
+        // Auto-validate if code is 8 characters
+        if (code.length === 8) {
+            setTimeout(() => validateAuthorizationCode(), 500);
+        }
+    });
+
+    // Tab switching functionality
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const targetTab = e.target.dataset.tab;
+            switchTab(targetTab);
+        });
+    });
+
+    // Switch between tabs
+    function switchTab(tabName) {
+        // Update tab buttons
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.querySelector(`[data-tab="${tabName}"]`)?.classList.add('active');
+
+        // Update tab content
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.style.display = 'none';
+        });
+
+        const targetContent = $(`#${tabName}-content`);
+        if (targetContent) {
+            targetContent.style.display = 'block';
+        }
+
+        // Load data for authorization codes tab
+        if (tabName === 'authorization-codes') {
+            fetchUserAuthorizationCodes();
+        }
+
+        // Load data for current requests tab
+        if (tabName === 'current-requests') {
+            fetchRequests();
+        }
+    }
 
     // --- Reports Enhancement ---
     async function populateReportItemDropdown() {
@@ -2286,51 +3258,136 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Request form functionality
-    const newRequestBtn = $('#newRequestBtn');
-    const studentRequestForm = $('.student-request-form');
-    const requestForm = $('#studentRequestForm');
+    // Initialize checkout tabs functionality
+    initializeCheckoutTabs();
 
-    // Show/hide form
-    newRequestBtn.addEventListener('click', () => {
-        studentRequestForm.style.display = 'block';
-        // Load available items for request
-        loadAvailableItems();
+// Initialize checkout tabs system
+function initializeCheckoutTabs() {
+    const tabButtons = document.querySelectorAll('.checkout-tabs .tab-btn');
+    const tabContents = document.querySelectorAll('.checkout-tabs ~ .tab-content');
+
+    // Add click event listeners to tab buttons
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const targetTab = button.getAttribute('data-tab');
+
+            // Remove active class from all buttons
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+
+            // Add active class to clicked button
+            button.classList.add('active');
+
+            // Hide all tab contents
+            tabContents.forEach(content => {
+                content.style.display = 'none';
+            });
+
+            // Show target tab content
+            const targetContent = document.getElementById(targetTab + '-content');
+            if (targetContent) {
+                targetContent.style.display = 'block';
+            }
+
+            // Initialize tab-specific functionality
+            if (targetTab === 'request-equipment') {
+                loadAvailableItemsForRequest();
+                setMinimumDateForRequest();
+            } else if (targetTab === 'checkout-equipment') {
+                // Checkout tab functionality already exists
+            } else if (targetTab === 'checkin-equipment') {
+                loadCheckedOutItemsForReturn();
+            }
+        });
     });
 
-    $('#cancelRequestBtn').addEventListener('click', () => {
-        studentRequestForm.style.display = 'none';
-        requestForm.reset();
-    });
+    // Initialize the first tab
+    if (tabButtons.length > 0) {
+        tabButtons[0].click();
+    }
+}
 
-    // Load available items for the dropdown
-    async function loadAvailableItems() {
-        try {
-            const res = await fetch('php/inventory.php?status=available');
-            const data = await res.json();
-            const select = $('#requestItem');
+// Load available items for request dropdown
+async function loadAvailableItemsForRequest() {
+    try {
+        const res = await fetch('php/inventory.php?status=available');
+        const data = await res.json();
+        const select = $('#requestItem');
+
+        if (select && data.success) {
             select.innerHTML = '<option value="">Choose equipment...</option>';
             data.data.forEach(item => {
-                select.innerHTML += `<option value="${item.id}">${item.name}</option>`;
+                select.innerHTML += `<option value="${item.id}">${item.name} - ${item.category} (${item.quantity} available)</option>`;
             });
-        } catch (error) {
-            console.error('Error loading items:', error);
-            showToast('Failed to load available items', 'danger');
+        }
+    } catch (error) {
+        console.error('Error loading items:', error);
+        showToast('Failed to load available items', 'danger');
+    }
+}
+
+// Set minimum date for request form
+function setMinimumDateForRequest() {
+    const dateInput = $('#requestDate');
+    if (dateInput) {
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.min = today;
+        if (!dateInput.value) {
+            dateInput.value = today;
         }
     }
+}
 
-    // Handle form submission
-    requestForm.addEventListener('submit', async function(e) {
+// Load checked out items for return dropdown
+async function loadCheckedOutItemsForReturn() {
+    try {
+        const res = await fetch('php/checkout.php');
+        const data = await res.json();
+        const select = $('#checkinItem');
+
+        if (select && data.success) {
+            select.innerHTML = '<option value="">Select an item to return...</option>';
+
+            // Filter for items checked out by current user or all items for admin/staff
+            const userCheckouts = data.data.filter(checkout => {
+                if (currentUser.role === 'admin' || currentUser.role === 'staff') {
+                    return checkout.status === 'checked_out';
+                } else {
+                    return checkout.status === 'checked_out' && checkout.user_id == currentUser.id;
+                }
+            });
+
+            userCheckouts.forEach(checkout => {
+                const dueDate = new Date(checkout.due_date).toLocaleDateString();
+                select.innerHTML += `<option value="${checkout.id}">${checkout.item_name} (Due: ${dueDate})</option>`;
+            });
+
+            if (userCheckouts.length === 0) {
+                select.innerHTML = '<option value="">No items to return</option>';
+            }
+        }
+    } catch (error) {
+        console.error('Error loading checked out items:', error);
+        showToast('Failed to load checked out items', 'danger');
+    }
+}
+
+    // Equipment Request Form submission (in checkout section)
+    $('#equipmentRequestForm')?.addEventListener('submit', async (e) => {
         e.preventDefault();
 
         const itemId = $('#requestItem').value;
-        const quantity = $('#requestQuantity').value;
+        const quantity = parseInt($('#requestQuantity').value);
         const neededBy = $('#requestDate').value;
-        const purpose = $('#requestPurpose').value;
+        const purpose = $('#requestPurpose').value.trim();
 
         // Validation
-        if (!itemId || !quantity || !neededBy || !purpose.trim()) {
-            showToast('Please fill in all fields', 'warning');
+        if (!itemId || !quantity || !neededBy || !purpose) {
+            showToast('Please fill in all required fields', 'danger');
+            return;
+        }
+
+        if (purpose.length < 10) {
+            showToast('Purpose must be at least 10 characters long', 'danger');
             return;
         }
 
@@ -2344,7 +3401,7 @@ document.addEventListener('DOMContentLoaded', function () {
         formData.append('quantity', quantity);
         formData.append('needed_by', neededBy);
         formData.append('purpose', purpose);
-        
+
         try {
             const res = await fetch('php/request.php', {
                 method: 'POST',
@@ -2352,12 +3409,22 @@ document.addEventListener('DOMContentLoaded', function () {
                 credentials: 'include'
             });
             const data = await res.json();
-            
+
             if (data.success) {
-                showToast('Request submitted successfully', 'success');
-                studentRequestForm.style.display = 'none';
-                requestForm.reset();
-                fetchRequests(); // Refresh the requests table
+                showToast('Equipment request submitted successfully! You will receive an authorization code once approved.', 'success');
+                $('#equipmentRequestForm').reset();
+
+                // Set minimum date to today for next request
+                const today = new Date().toISOString().split('T')[0];
+                $('#requestDate').min = today;
+
+                // Refresh requests data
+                fetchRequests();
+
+                // Show success message with guidance
+                setTimeout(() => {
+                    showToast('Your request is now visible in the My Requests section. You will receive an authorization code once approved by lab staff.', 'info');
+                }, 2000);
             } else {
                 showToast(data.message || 'Failed to submit request', 'danger');
             }
@@ -2366,4 +3433,221 @@ document.addEventListener('DOMContentLoaded', function () {
             showToast('Failed to submit request', 'danger');
         }
     });
+
+    // Initialize authorization codes for students
+    if (currentUser && currentUser.role === 'student') {
+        fetchUserAuthorizationCodes();
+    }
+
+    // Clear Transaction History button event listener
+    $('#clearHistoryBtn')?.addEventListener('click', showClearHistoryModal);
 });
+
+// Clear Transaction History functionality
+async function showClearHistoryModal() {
+    if (!currentUser || currentUser.role !== 'admin') {
+        showToast('Admin access required', 'danger');
+        return;
+    }
+
+    try {
+        // Get transaction statistics first
+        const statsRes = await fetch('php/admin_tools.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'get_transaction_stats'
+            }),
+            credentials: 'include'
+        });
+
+        const statsData = await statsRes.json();
+
+        if (!statsData.success) {
+            showToast('Failed to load transaction statistics', 'danger');
+            return;
+        }
+
+        const stats = statsData.data;
+
+        // Create confirmation modal
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.display = 'flex';
+        modal.id = 'clearHistoryModal';
+
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 600px;">
+                <div class="modal-header">
+                    <h3>Clear Transaction History</h3>
+                    <button class="close-modal-btn" type="button">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="transaction-stats">
+                        <h4>Current Transaction Statistics</h4>
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <span class="stat-number">${stats.total_requests}</span>
+                                <span class="stat-label">Total Requests</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-number">${stats.total_checkouts}</span>
+                                <span class="stat-label">Total Checkouts</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-number">${stats.total_auth_codes}</span>
+                                <span class="stat-label">Total Auth Codes</span>
+                            </div>
+                        </div>
+
+                        <h5>Active Transactions (Will be Preserved)</h5>
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <span class="stat-number" style="color: #28a745;">${stats.active_requests}</span>
+                                <span class="stat-label">Active Requests</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-number" style="color: #28a745;">${stats.active_checkouts}</span>
+                                <span class="stat-label">Active Checkouts</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-number" style="color: #28a745;">${stats.active_auth_codes}</span>
+                                <span class="stat-label">Active Auth Codes</span>
+                            </div>
+                        </div>
+
+                        <h5>Historical Data (Will be Deleted)</h5>
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <span class="stat-number" style="color: #dc3545;">${stats.historical_requests}</span>
+                                <span class="stat-label">Historical Requests</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-number" style="color: #dc3545;">${stats.historical_checkouts}</span>
+                                <span class="stat-label">Historical Checkouts</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-number" style="color: #dc3545;">${stats.historical_auth_codes}</span>
+                                <span class="stat-label">Historical Auth Codes</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="warning-section">
+                        <h5><i class="fas fa-exclamation-triangle"></i> Important Information</h5>
+                        <ul>
+                            <li><strong>This action will permanently delete all historical transaction records</strong></li>
+                            <li>Active transactions (pending/approved requests, checked-out items, active authorization codes) will be preserved</li>
+                            <li>All ID sequences will be reset to start from 1</li>
+                            <li>After clearing, the next new request will have ID #1 (not #${stats.max_request_id + 1})</li>
+                            <li>This operation cannot be undone</li>
+                            <li>All data will be logged for audit purposes</li>
+                        </ul>
+                    </div>
+
+                    <div style="margin: 1rem 0;">
+                        <label style="display: flex; align-items: center; gap: 0.5rem;">
+                            <input type="checkbox" id="confirmClearHistory" required>
+                            <span>I understand that this action will permanently delete historical data and cannot be undone</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <div class="confirmation-actions">
+                        <button class="btn btn-outline" id="cancelClearHistory">Cancel</button>
+                        <button class="btn danger-btn" id="confirmClearHistoryBtn" disabled>
+                            <i class="fas fa-trash-alt"></i> Clear Transaction History
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Add event listeners
+        const closeBtn = modal.querySelector('.close-modal-btn');
+        const cancelBtn = modal.querySelector('#cancelClearHistory');
+        const confirmBtn = modal.querySelector('#confirmClearHistoryBtn');
+        const checkbox = modal.querySelector('#confirmClearHistory');
+
+        const cleanup = () => {
+            modal.remove();
+        };
+
+        // Enable/disable confirm button based on checkbox
+        checkbox.addEventListener('change', () => {
+            confirmBtn.disabled = !checkbox.checked;
+        });
+
+        closeBtn.onclick = cleanup;
+        cancelBtn.onclick = cleanup;
+
+        confirmBtn.onclick = async () => {
+            if (!checkbox.checked) {
+                showToast('Please confirm that you understand the consequences', 'warning');
+                return;
+            }
+
+            cleanup();
+            await executeClearHistory();
+        };
+
+        // Close on outside click
+        modal.onclick = (e) => {
+            if (e.target === modal) {
+                cleanup();
+            }
+        };
+
+    } catch (error) {
+        console.error('Error showing clear history modal:', error);
+        showToast('Failed to load transaction statistics', 'danger');
+    }
+}
+
+async function executeClearHistory() {
+    try {
+        // Show loading toast
+        showToast('Clearing transaction history...', 'info');
+
+        const res = await fetch('php/admin_tools.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'clear_transaction_history'
+            }),
+            credentials: 'include'
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+            showToast(`Transaction history cleared successfully! Preserved ${data.data.preserved_requests} requests, ${data.data.preserved_checkouts} checkouts, and ${data.data.preserved_auth_codes} authorization codes. New IDs will start from ${data.data.new_id_start}.`, 'success');
+
+            // Refresh all relevant data
+            await Promise.all([
+                fetchRequests(),
+                fetchCheckouts(),
+                updateDashboardStats()
+            ]);
+
+            // Refresh authorization codes for students
+            if (currentUser && currentUser.role === 'student') {
+                fetchUserAuthorizationCodes();
+            }
+        } else {
+            showToast(data.message || 'Failed to clear transaction history', 'danger');
+        }
+
+    } catch (error) {
+        console.error('Error clearing transaction history:', error);
+        showToast('Failed to clear transaction history', 'danger');
+    }
+}

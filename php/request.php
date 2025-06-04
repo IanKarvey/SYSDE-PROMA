@@ -3,6 +3,19 @@ require_once 'config.php';
 require_once 'session.php';
 require_once 'utils.php';
 
+// Generate cryptographically secure authorization code
+function generateSecureAuthCode($length = 8) {
+    $characters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    $code = '';
+    $max = strlen($characters) - 1;
+
+    for ($i = 0; $i < $length; $i++) {
+        $code .= $characters[random_int(0, $max)];
+    }
+
+    return $code;
+}
+
 header('Content-Type: application/json');
 header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: DENY');
@@ -54,12 +67,20 @@ if ($method === 'GET') {
     $limit = isset($_GET['limit']) ? intval($_GET['limit']) : null;
 
     if ($user['role'] === 'admin' || $user['role'] === 'staff') {
-        // Admin/staff: all requests
-        $sql = 'SELECT r.*, u.first_name, u.last_name, i.name AS item_name FROM requests r JOIN users u ON r.user_id=u.id JOIN inventory i ON r.item_id=i.id';
+        // Admin/staff: only current/active requests (not completed history)
+        $sql = 'SELECT r.*, u.first_name, u.last_name, i.name AS item_name,
+                       ac.code as authorization_code, ac.status as code_status,
+                       ac.expires_at as code_expires_at, ac.used_at as code_used_at,
+                       ac.created_at as code_created_at
+                FROM requests r
+                JOIN users u ON r.user_id=u.id
+                JOIN inventory i ON r.item_id=i.id
+                LEFT JOIN authorization_codes ac ON r.id = ac.request_id
+                WHERE r.status IN ("pending", "approved")';
         $params = [];
 
         if ($search) {
-            $sql .= ' WHERE (i.name LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ? OR r.status LIKE ?)';
+            $sql .= ' AND (i.name LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ? OR r.status LIKE ?)';
             $searchParam = "%$search%";
             $params = [$searchParam, $searchParam, $searchParam, $searchParam];
         }
@@ -75,8 +96,16 @@ if ($method === 'GET') {
         $stmt->execute($params);
         $requests = $stmt->fetchAll();
     } else {
-        // User: only their requests
-        $sql = 'SELECT r.*, i.name AS item_name FROM requests r JOIN inventory i ON r.item_id=i.id WHERE r.user_id=?';
+        // User: only their current/active requests (not completed history)
+        $sql = 'SELECT r.*, i.name AS item_name, u.first_name, u.last_name,
+                       ac.code as authorization_code, ac.status as code_status,
+                       ac.expires_at as code_expires_at, ac.used_at as code_used_at,
+                       ac.created_at as code_created_at
+                FROM requests r
+                JOIN inventory i ON r.item_id=i.id
+                JOIN users u ON r.user_id=u.id
+                LEFT JOIN authorization_codes ac ON r.id = ac.request_id
+                WHERE r.user_id=? AND r.status IN ("pending", "approved")';
         $params = [$user['id']];
 
         if ($search) {
@@ -97,6 +126,39 @@ if ($method === 'GET') {
         $stmt->execute($params);
         $requests = $stmt->fetchAll();
     }
+
+    // Process authorization code data for each request
+    foreach ($requests as &$request) {
+        if ($request['authorization_code']) {
+            // Calculate time remaining for active codes
+            if ($request['code_status'] === 'active' && $request['code_expires_at']) {
+                $now = new DateTime();
+                $expires = new DateTime($request['code_expires_at']);
+                $diff = $expires->diff($now);
+
+                if ($expires < $now) {
+                    $request['code_expired'] = true;
+                    $request['time_remaining'] = 'Expired';
+                } else {
+                    $request['code_expired'] = false;
+                    $hours = $diff->h + $diff->days * 24;
+                    $minutes = $diff->i;
+                    $seconds = $diff->s;
+
+                    if ($hours > 0) {
+                        $request['time_remaining'] = "{$hours}h {$minutes}m {$seconds}s";
+                    } elseif ($minutes > 0) {
+                        $request['time_remaining'] = "{$minutes}m {$seconds}s";
+                    } else {
+                        $request['time_remaining'] = "{$seconds}s";
+                    }
+                }
+            } else {
+                $request['code_expired'] = $request['code_status'] === 'expired';
+                $request['time_remaining'] = null;
+            }
+        }
+    }
     echo json_encode(['success' => true, 'data' => $requests]);
     exit;
 }
@@ -111,10 +173,10 @@ if ($method === 'POST') {
     $item_id = intval($_POST['item_id'] ?? 0);
     $quantity = intval($_POST['quantity'] ?? 1);
     $needed_by = trim($_POST['needed_by'] ?? '');
-    $purpose = trim(sanitize_string($_POST['purpose'] ?? ''));
+    $notes = trim(sanitize_string($_POST['purpose'] ?? '')); // Map 'purpose' from form to 'notes' in database
 
     // Enhanced input validation
-    if (!$item_id || !$quantity || !$needed_by || !$purpose) {
+    if (!$item_id || !$quantity || !$needed_by || !$notes) {
         echo json_encode(['success' => false, 'message' => 'Missing required fields.']);
         exit;
     }
@@ -137,8 +199,8 @@ if ($method === 'POST') {
         exit;
     }
 
-    // Validate purpose length
-    if (strlen($purpose) < 10 || strlen($purpose) > 500) {
+    // Validate notes length
+    if (strlen($notes) < 10 || strlen($notes) > 500) {
         echo json_encode(['success' => false, 'message' => 'Purpose must be between 10 and 500 characters.']);
         exit;
     }
@@ -155,8 +217,8 @@ if ($method === 'POST') {
         }
 
         // Insert the request
-        $stmt = $pdo->prepare('INSERT INTO requests (item_id, user_id, quantity, date_requested, needed_by, purpose, status) VALUES (?, ?, ?, CURDATE(), ?, ?, "pending")');
-        $stmt->execute([$item_id, $user['id'], $quantity, $needed_by, $purpose]);
+        $stmt = $pdo->prepare('INSERT INTO requests (item_id, user_id, quantity, needed_by, notes, status) VALUES (?, ?, ?, ?, ?, "pending")');
+        $stmt->execute([$item_id, $user['id'], $quantity, $needed_by, $notes]);
         
         echo json_encode(['success' => true, 'message' => 'Request submitted successfully.']);
     } catch (PDOException $e) {
@@ -222,7 +284,7 @@ if ($method === 'PUT') {
             exit;
         }
 
-        // If approving request, check and deduct inventory
+        // If approving request, generate authorization code instead of immediate inventory deduction
         if ($status === 'approved') {
             // Check current inventory availability
             $stmt = $pdo->prepare('SELECT quantity, name FROM inventory WHERE id = ?');
@@ -245,18 +307,43 @@ if ($method === 'PUT') {
                 exit;
             }
 
-            // Deduct inventory quantity
-            $new_quantity = $inventory_item['quantity'] - $request['quantity'];
-            $stmt = $pdo->prepare('UPDATE inventory SET quantity = ? WHERE id = ?');
-            $stmt->execute([$new_quantity, $request['item_id']]);
+            // Generate authorization code
+            $code = generateSecureAuthCode(8);
 
-            // Log inventory adjustment (skip if table doesn't exist)
+            // Ensure code is unique
+            do {
+                $stmt = $pdo->prepare("SELECT id FROM authorization_codes WHERE code = ?");
+                $stmt->execute([$code]);
+                if ($stmt->fetch()) {
+                    $code = generateSecureAuthCode(8);
+                } else {
+                    break;
+                }
+            } while (true);
+
+            // Set expiry to 48 hours from now
+            $expires_at = date('Y-m-d H:i:s', strtotime('+48 hours'));
+
+            // Insert authorization code
+            $stmt = $pdo->prepare("
+                INSERT INTO authorization_codes (
+                    code, request_id, user_id, item_id, expires_at
+                ) VALUES (?, ?, ?, ?, ?)
+            ");
+            $stmt->execute([
+                $code,
+                $id,
+                $request['user_id'],
+                $request['item_id'],
+                $expires_at
+            ]);
+
+            // Log authorization code generation
             try {
                 $stmt = $pdo->prepare('INSERT INTO activity_logs (user_id, action, entity_type, entity_id, details, created_at) VALUES (?, ?, ?, ?, ?, NOW())');
-                $log_details = "Inventory reduced by {$request['quantity']} units for approved request #{$id}. New quantity: {$new_quantity}";
-                $stmt->execute([$user['id'], 'inventory_deduction', 'inventory', $request['item_id'], $log_details]);
+                $log_details = "Generated authorization code {$code} for approved request #{$id} ({$inventory_item['name']}) - expires {$expires_at}";
+                $stmt->execute([$user['id'], 'generate_auth_code', 'authorization_codes', $pdo->lastInsertId(), $log_details]);
             } catch (PDOException $log_error) {
-                // Continue without logging if table doesn't exist
                 error_log("Activity logging failed: " . $log_error->getMessage());
             }
         }
@@ -279,11 +366,16 @@ if ($method === 'PUT') {
         $pdo->commit();
 
         $message = "Request $status successfully.";
-        if ($status === 'approved') {
-            $message .= " Inventory updated automatically.";
+        $response_data = ['success' => true, 'message' => $message];
+
+        if ($status === 'approved' && isset($code)) {
+            $message .= " Authorization code generated: $code (expires in 48 hours).";
+            $response_data['message'] = $message;
+            $response_data['authorization_code'] = $code;
+            $response_data['expires_at'] = $expires_at;
         }
 
-        echo json_encode(['success' => true, 'message' => $message]);
+        echo json_encode($response_data);
 
     } catch (PDOException $e) {
         $pdo->rollBack();

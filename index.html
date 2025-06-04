@@ -71,9 +71,9 @@
                         <i class="fas fa-boxes"></i>
                         <span>Inventory</span>
                     </li>
-                    <li data-section="checkinout" class="admin-only">
+                    <li data-section="checkinout">
                         <i class="fas fa-exchange-alt"></i>
-                        <span>Check In/Out</span>
+                        <span>Equipment Checkout</span>
                     </li>
                     <li data-section="reports" class="admin-only">
                         <i class="fas fa-chart-bar"></i>
@@ -252,9 +252,14 @@
             <section id="inventory" class="content-section">
                 <div class="section-header">
                     <h1>Inventory Management</h1>
-                    <button class="btn btn-primary" id="addItemBtn">
-                        <i class="fas fa-plus"></i> Add Item
-                    </button>
+                    <div class="header-actions">
+                        <button class="btn btn-primary" id="addItemBtn">
+                            <i class="fas fa-plus"></i> Add Item
+                        </button>
+                        <button class="btn btn-warning admin-only" id="clearHistoryBtn">
+                            <i class="fas fa-trash-alt"></i> Clear Transaction History
+                        </button>
+                    </div>
                 </div>
                 
                 <div class="filters">
@@ -314,76 +319,170 @@
                 </div>
             </section>
 
-            <!-- Requests Section -->
+            <!-- My Requests Section -->
             <section id="requests" class="content-section">
                 <div class="section-header">
                     <h1>My Requests</h1>
-                    <button class="btn btn-primary" id="newRequestBtn">
-                        <i class="fas fa-plus"></i> New Request
-                    </button>
+                    <div class="section-info">
+                        <i class="fas fa-info-circle"></i>
+                        <span>View your current pending and approved requests. To request new equipment, use the <a href="#checkinout" onclick="showSection('#checkinout')">Checkout Equipment</a> section.</span>
+                    </div>
                 </div>
-                
-                <!-- Add reservation form for students -->
-                <div class="student-request-form" style="margin-bottom: 20px; display: none;">
-                    <h3>New Equipment Request</h3>
-                    <form id="studentRequestForm">
-                        <div class="form-group">
-                            <label for="requestItem">Select Equipment:</label>
-                            <select id="requestItem" required>
-                                <option value="">Choose equipment...</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="requestQuantity">Quantity Needed:</label>
-                            <input type="number" id="requestQuantity" min="1" max="10" value="1" required>
-                            <small class="form-help">Maximum 10 units per request</small>
-                        </div>
-                        <div class="form-group">
-                            <label for="requestDate">Needed By:</label>
-                            <input type="date" id="requestDate" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="requestPurpose">Purpose:</label>
-                            <textarea id="requestPurpose" required rows="3" placeholder="Please describe the purpose of your request..."></textarea>
-                        </div>
-                        <div class="form-actions">
-                            <button type="submit" class="btn btn-primary">Submit Request</button>
-                            <button type="button" class="btn btn-outline" id="cancelRequestBtn">Cancel</button>
-                        </div>
-                    </form>
+
+
+
+                <!-- Tabs for student interface -->
+                <div class="requests-tabs student-only">
+                    <div class="tab-buttons">
+                        <button class="tab-btn active" data-tab="current-requests">
+                            <i class="fas fa-list"></i> Current Requests
+                        </button>
+                        <button class="tab-btn" data-tab="authorization-codes" id="authCodesTab" style="display: none;">
+                            <i class="fas fa-key"></i> Authorization Codes
+                            <span class="tab-badge" id="authCodesBadge">0</span>
+                        </button>
+                    </div>
                 </div>
-                
-                <!-- Student's request history -->
-                <div class="table-responsive">
-                    <table class="requests-table">
-                        <thead>
-                            <tr>
-                                <th>Request ID</th>
-                                <th>Item</th>
-                                <th>Quantity</th>
-                                <th>Requested By</th>
-                                <th>Date Requested</th>
-                                <th>Needed By</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Requests will be populated here by JavaScript -->
-                        </tbody>
-                    </table>
+
+                <!-- Current Requests Tab Content -->
+                <div class="tab-content" id="current-requests-content">
+                    <div class="table-responsive">
+                        <table class="requests-table">
+                            <thead>
+                                <tr>
+                                    <th>Request ID</th>
+                                    <th>Item</th>
+                                    <th>Quantity</th>
+                                    <th>Requested By</th>
+                                    <th>Date Requested</th>
+                                    <th>Needed By</th>
+                                    <th>Status</th>
+                                    <th>Authorization Code</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Requests will be populated here by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Authorization Codes Tab Content -->
+                <div class="tab-content" id="authorization-codes-content" style="display: none;">
+                    <div class="auth-codes-header">
+                        <h3>Your Authorization Codes</h3>
+                        <p class="auth-codes-description">
+                            Authorization codes are generated when your equipment requests are approved.
+                            Use these codes in the <a href="#checkinout" onclick="showSection('#checkinout')">Check In/Out</a> section to quickly checkout your approved equipment.
+                        </p>
+                    </div>
+
+                    <div class="auth-codes-container">
+                        <div class="auth-codes-list" id="authCodesList">
+                            <!-- Authorization codes will be populated here by JavaScript -->
+                        </div>
+
+                        <div class="no-auth-codes" id="noAuthCodes" style="display: none;">
+                            <div class="empty-state">
+                                <i class="fas fa-key fa-3x"></i>
+                                <h4>No Authorization Codes</h4>
+                                <p>You don't have any authorization codes yet. Authorization codes are generated when your equipment requests are approved by lab staff.</p>
+                                <p>To request equipment, go to the <a href="#checkinout" onclick="showSection('#checkinout')">Checkout Equipment</a> section and submit a request there.</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
 
             <!-- Check In/Out Section -->
             <section id="checkinout" class="content-section">
                 <div class="section-header">
-                    <h1>Check In/Out Equipment</h1>
+                    <h1>Equipment Checkout</h1>
                 </div>
-                
+
+                <!-- Tabs for checkout interface -->
+                <div class="checkout-tabs">
+                    <div class="tab-buttons">
+                        <button class="tab-btn active" data-tab="request-equipment">
+                            <i class="fas fa-plus"></i> Request Equipment
+                        </button>
+                        <button class="tab-btn" data-tab="checkout-equipment">
+                            <i class="fas fa-sign-out-alt"></i> Checkout Equipment
+                        </button>
+                        <button class="tab-btn" data-tab="checkin-equipment">
+                            <i class="fas fa-sign-in-alt"></i> Check In Equipment
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Request Equipment Tab -->
+                <div class="tab-content" id="request-equipment-content">
+                    <div class="request-form-container">
+                        <h3>Request Equipment</h3>
+                        <p class="form-description">Submit a request for equipment. Once approved by lab staff, you'll receive an authorization code to checkout the equipment.</p>
+
+                        <form id="equipmentRequestForm">
+                            <div class="form-group">
+                                <label for="requestItem">Select Equipment:</label>
+                                <select id="requestItem" required>
+                                    <option value="">Choose equipment...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="requestQuantity">Quantity Needed:</label>
+                                <input type="number" id="requestQuantity" min="1" max="10" value="1" required>
+                                <small class="form-help">Maximum 10 units per request</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="requestDate">Needed By:</label>
+                                <input type="date" id="requestDate" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="requestPurpose">Purpose:</label>
+                                <textarea id="requestPurpose" required rows="3" placeholder="Please describe the purpose of your request (minimum 10 characters)..."></textarea>
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-paper-plane"></i> Submit Request
+                                </button>
+                                <button type="reset" class="btn btn-outline">
+                                    <i class="fas fa-undo"></i> Reset Form
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Checkout Equipment Tab -->
+                <div class="tab-content" id="checkout-equipment-content" style="display: none;">
+
                 <div class="checkinout-container">
                     <div class="checkinout-form">
                         <h3>Check Out Equipment</h3>
+
+                        <!-- Authorization Code Section -->
+                        <div class="form-group authorization-code-section">
+                            <label for="authorizationCode">
+                                Authorization Code
+                                <span class="required-indicator student-only">*</span>
+                                <span class="optional-indicator admin-staff-only">(Optional)</span>:
+                            </label>
+                            <div class="auth-code-input-group">
+                                <input type="text" id="authorizationCode" placeholder="Enter 8-character code" maxlength="20" style="text-transform: uppercase;" required>
+                                <button type="button" class="btn btn-outline btn-sm" id="validateCodeBtn">Validate</button>
+                            </div>
+                            <small class="form-help student-only">
+                                <i class="fas fa-exclamation-circle"></i>
+                                Authorization codes are required for all student equipment checkouts.
+                                Get your code from an approved request in the
+                                <a href="#requests" onclick="showSection('#requests')">Current Requests</a> section.
+                            </small>
+                            <small class="form-help admin-staff-only">
+                                Enter authorization code from an approved request to auto-fill the form, or leave blank for emergency checkout.
+                            </small>
+                        </div>
+
                         <div class="form-group">
                             <label for="checkoutItem">Select Item:</label>
                             <select id="checkoutItem">
@@ -408,9 +507,15 @@
                         </div>
                         <button class="btn btn-primary" id="checkoutBtn">Check Out</button>
                     </div>
-                    
-                    <div class="checkinout-form">
+                </div>
+                </div>
+
+                <!-- Check In Equipment Tab -->
+                <div class="tab-content" id="checkin-equipment-content" style="display: none;">
+                    <div class="checkin-form-container">
                         <h3>Check In Equipment</h3>
+                        <p class="form-description">Return equipment that you have checked out.</p>
+
                         <div class="form-group">
                             <label for="checkinItem">Select Item to Check In:</label>
                             <select id="checkinItem">
@@ -430,12 +535,15 @@
                         </div>
                         <div class="form-group">
                             <label for="checkinNotes">Notes:</label>
-                            <textarea id="checkinNotes" rows="3"></textarea>
+                            <textarea id="checkinNotes" rows="3" placeholder="Any notes about the equipment condition or usage..."></textarea>
                         </div>
-                        <button class="btn btn-primary" id="checkinBtn">Check In</button>
+                        <button class="btn btn-primary" id="checkinBtn">
+                            <i class="fas fa-sign-in-alt"></i> Check In Equipment
+                        </button>
                     </div>
                 </div>
-                
+
+                <!-- Currently Checked Out Items (visible in all tabs) -->
                 <div class="currently-checked-out">
                     <h3>Currently Checked Out Items</h3>
                     <div class="table-responsive">
@@ -447,6 +555,7 @@
                                     <th>Date Out</th>
                                     <th>Due Date</th>
                                     <th>Status</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
